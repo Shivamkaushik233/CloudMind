@@ -1,5 +1,10 @@
 # CloudMind
 
+
+
+🔗 **Live Demo (temporary):** [harper-soma-stockholm-missing.trycloudflare.com](https://harper-soma-stockholm-missing.trycloudflare.com/) — link expires when the tunnel closes
+
+
 AI-powered cloud infrastructure & intelligent autoscaling platform — full
 project vision in `docs/PROJECT_BRIEF.md`. This repo is being built out in
 the 8 phases described there, starting from Phase 1.
