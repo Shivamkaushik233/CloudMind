@@ -9,12 +9,14 @@ type User = {
   email?: string;
   full_name?: string;
   role?: string;
+  created_at?: string;
 };
 
 type Project = {
   id: string;
   name: string;
   description?: string;
+  owner_id?: string;
 };
 
 type Application = {
@@ -53,6 +55,7 @@ type IconName =
   | "environments"
   | "clusters"
   | "deployments"
+  | "users"
   | "refresh"
   | "logout"
   | "plus"
@@ -61,6 +64,8 @@ type IconName =
   | "server"
   | "layers"
   | "box"
+  | "trash"
+  | "shield"
   | "activity";
 
 function Icon({
@@ -133,6 +138,23 @@ function Icon({
         </svg>
       );
 
+    case "users":
+      return (
+        <svg {...common}>
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+      );
+
+    case "shield":
+      return (
+        <svg {...common}>
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        </svg>
+      );
+
     case "refresh":
       return (
         <svg {...common}>
@@ -171,6 +193,13 @@ function Icon({
       return (
         <svg {...common}>
           <path d="M5 12l4 4L19 6" />
+        </svg>
+      );
+
+    case "trash":
+      return (
+        <svg {...common}>
+          <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
         </svg>
       );
 
@@ -213,51 +242,62 @@ function Icon({
   }
 }
 
-const navigation = [
-  { id: "dashboard", label: "Dashboard", icon: "dashboard" as IconName },
-  { id: "projects", label: "Projects", icon: "projects" as IconName },
-  {
-    id: "applications",
-    label: "Applications",
-    icon: "applications" as IconName,
-  },
-  {
-    id: "environments",
-    label: "Environments",
-    icon: "environments" as IconName,
-  },
-  { id: "clusters", label: "Clusters", icon: "clusters" as IconName },
-  {
-    id: "deployments",
-    label: "Deployments",
-    icon: "deployments" as IconName,
-  },
-];
-
 export default function CloudMind() {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
 
+  // Auth form states
+  const [authMode, setAuthMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [regFullName, setRegFullName] = useState("");
+  const [regEmail, setRegEmail] = useState("");
+  const [regPassword, setRegPassword] = useState("");
+  const [regRole, setRegRole] = useState("DEVELOPER");
 
   const [loginLoading, setLoginLoading] = useState(false);
   const [loading, setLoading] = useState(false);
-
   const [loginError, setLoginError] = useState("");
   const [error, setError] = useState("");
 
   const [activePage, setActivePage] = useState("dashboard");
 
+  // Resources
   const [projects, setProjects] = useState<Project[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
   const [environments, setEnvironments] = useState<Environment[]>([]);
   const [clusters, setClusters] = useState<Cluster[]>([]);
   const [deployments, setDeployments] = useState<Deployment[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+
+  // Modal Dialogs
+  const [activeModal, setActiveModal] = useState<
+    "project" | "application" | "cluster" | "environment" | "deployment" | null
+  >(null);
+  const [modalSubmitting, setModalSubmitting] = useState(false);
+  const [modalError, setModalError] = useState("");
+
+  // Modal Form Inputs
+  const [newProjectName, setNewProjectName] = useState("");
+  const [newProjectDesc, setNewProjectDesc] = useState("");
+
+  const [newAppProjectId, setNewAppProjectId] = useState("");
+  const [newAppName, setNewAppName] = useState("");
+  const [newAppRepoUrl, setNewAppRepoUrl] = useState("");
+
+  const [newClusterName, setNewClusterName] = useState("");
+  const [newClusterProvider, setNewClusterProvider] = useState("AWS EKS");
+  const [newClusterRegion, setNewClusterRegion] = useState("us-east-1");
+
+  const [newEnvAppId, setNewEnvAppId] = useState("");
+  const [newEnvClusterId, setNewEnvClusterId] = useState("");
+  const [newEnvName, setNewEnvName] = useState("production");
+
+  const [newDepEnvId, setNewDepEnvId] = useState("");
+  const [newDepVersion, setNewDepVersion] = useState("v1.0.0");
 
   useEffect(() => {
     const savedToken = localStorage.getItem("cloudmind_token");
-
     if (savedToken) {
       setToken(savedToken);
     }
@@ -284,9 +324,15 @@ export default function CloudMind() {
 
     if (!response.ok) {
       const text = await response.text();
-      throw new Error(text || `Request failed: ${response.status}`);
+      let errorMsg = text;
+      try {
+        const json = JSON.parse(text);
+        if (json.detail) errorMsg = json.detail;
+      } catch {}
+      throw new Error(errorMsg || `Request failed: ${response.status}`);
     }
 
+    if (response.status === 204) return null;
     return response.json();
   }
 
@@ -294,8 +340,20 @@ export default function CloudMind() {
     try {
       const data = await apiFetch("/auth/me");
       setUser(data);
+      if (data.role === "ADMIN") {
+        loadUsers();
+      }
     } catch {
       logout();
+    }
+  }
+
+  async function loadUsers() {
+    try {
+      const data = await apiFetch("/auth/users");
+      if (Array.isArray(data)) setUsers(data);
+    } catch {
+      // ignore if non-admin
     }
   }
 
@@ -357,17 +415,11 @@ export default function CloudMind() {
                     : deploymentData.items || [];
 
                   allDeployments.push(...deploymentList);
-                } catch {
-                  // Ignore individual deployment errors.
-                }
+                } catch {}
               }
-            } catch {
-              // Ignore individual environment errors.
-            }
+            } catch {}
           }
-        } catch {
-          // Ignore individual application errors.
-        }
+        } catch {}
       }
 
       setApplications(allApplications);
@@ -380,15 +432,14 @@ export default function CloudMind() {
     }
   }
 
+  // --- Auth Handlers ---
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
     setLoginLoading(true);
     setLoginError("");
 
     try {
       const body = new URLSearchParams();
-
       body.append("username", email);
       body.append("password", password);
 
@@ -401,7 +452,6 @@ export default function CloudMind() {
       });
 
       const data = await response.json();
-
       if (!response.ok) {
         throw new Error(data.detail || "Incorrect email or password");
       }
@@ -411,13 +461,68 @@ export default function CloudMind() {
       setPassword("");
     } catch (err) {
       setLoginError(
-        err instanceof Error
-          ? err.message
-          : "Incorrect email or password"
+        err instanceof Error ? err.message : "Incorrect email or password"
       );
     } finally {
       setLoginLoading(false);
     }
+  }
+
+  async function handleRegister(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setLoginLoading(true);
+    setLoginError("");
+
+    try {
+      // 1. Register User
+      const regResp = await fetch(`${API_URL}/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          full_name: regFullName,
+          email: regEmail,
+          password: regPassword,
+          role: regRole,
+        }),
+      });
+
+      const regData = await regResp.json();
+      if (!regResp.ok) {
+        throw new Error(regData.detail || "Registration failed");
+      }
+
+      // 2. Automatically Login
+      const body = new URLSearchParams();
+      body.append("username", regEmail);
+      body.append("password", regPassword);
+
+      const loginResp = await fetch(`${API_URL}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body,
+      });
+
+      const loginData = await loginResp.json();
+      if (!loginResp.ok) {
+        throw new Error("Account created! Please sign in manually.");
+      }
+
+      localStorage.setItem("cloudmind_token", loginData.access_token);
+      setToken(loginData.access_token);
+      setRegPassword("");
+    } catch (err) {
+      setLoginError(
+        err instanceof Error ? err.message : "Failed to create account"
+      );
+    } finally {
+      setLoginLoading(false);
+    }
+  }
+
+  function handleQuickDemo() {
+    setEmail("admin@cloudmind.io");
+    setPassword("secret123");
+    setAuthMode("login");
   }
 
   function logout() {
@@ -429,13 +534,220 @@ export default function CloudMind() {
     setEnvironments([]);
     setClusters([]);
     setDeployments([]);
+    setUsers([]);
   }
 
-  function getPageTitle() {
-    const item = navigation.find((nav) => nav.id === activePage);
-    return item?.label || "Dashboard";
+  // --- Resource Creation Handlers ---
+  async function handleCreateProject(e: FormEvent) {
+    e.preventDefault();
+    setModalSubmitting(true);
+    setModalError("");
+    try {
+      await apiFetch("/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newProjectName,
+          description: newProjectDesc,
+        }),
+      });
+      setActiveModal(null);
+      setNewProjectName("");
+      setNewProjectDesc("");
+      loadData();
+    } catch (err) {
+      setModalError(
+        err instanceof Error ? err.message : "Failed to create project"
+      );
+    } finally {
+      setModalSubmitting(false);
+    }
   }
 
+  async function handleDeleteProject(projectId: string) {
+    if (!confirm("Are you sure you want to delete this project?")) return;
+    try {
+      await apiFetch(`/projects/${projectId}`, { method: "DELETE" });
+      loadData();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to delete project");
+    }
+  }
+
+  async function handleCreateApplication(e: FormEvent) {
+    e.preventDefault();
+    if (!newAppProjectId) {
+      setModalError("Please select a project.");
+      return;
+    }
+    setModalSubmitting(true);
+    setModalError("");
+    try {
+      await apiFetch(`/projects/${newAppProjectId}/applications`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newAppName,
+          repo_url: newAppRepoUrl || undefined,
+        }),
+      });
+      setActiveModal(null);
+      setNewAppName("");
+      setNewAppRepoUrl("");
+      loadData();
+    } catch (err) {
+      setModalError(
+        err instanceof Error ? err.message : "Failed to create application"
+      );
+    } finally {
+      setModalSubmitting(false);
+    }
+  }
+
+  async function handleDeleteApplication(appId: string) {
+    if (!confirm("Are you sure you want to delete this application?")) return;
+    try {
+      await apiFetch(`/applications/${appId}`, { method: "DELETE" });
+      loadData();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to delete application");
+    }
+  }
+
+  async function handleCreateCluster(e: FormEvent) {
+    e.preventDefault();
+    setModalSubmitting(true);
+    setModalError("");
+    try {
+      await apiFetch("/clusters", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newClusterName,
+          provider: newClusterProvider,
+          region: newClusterRegion,
+        }),
+      });
+      setActiveModal(null);
+      setNewClusterName("");
+      loadData();
+    } catch (err) {
+      setModalError(
+        err instanceof Error
+          ? err.message
+          : "Failed to create cluster (Requires Admin or DevOps role)"
+      );
+    } finally {
+      setModalSubmitting(false);
+    }
+  }
+
+  async function handleDeleteCluster(clusterId: string) {
+    if (!confirm("Are you sure you want to delete this cluster?")) return;
+    try {
+      await apiFetch(`/clusters/${clusterId}`, { method: "DELETE" });
+      loadData();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to delete cluster");
+    }
+  }
+
+  async function handleCreateEnvironment(e: FormEvent) {
+    e.preventDefault();
+    if (!newEnvAppId) {
+      setModalError("Please select an application.");
+      return;
+    }
+    setModalSubmitting(true);
+    setModalError("");
+    try {
+      await apiFetch(`/applications/${newEnvAppId}/environments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newEnvName,
+          cluster_id: newEnvClusterId || undefined,
+        }),
+      });
+      setActiveModal(null);
+      setNewEnvName("production");
+      loadData();
+    } catch (err) {
+      setModalError(
+        err instanceof Error ? err.message : "Failed to create environment"
+      );
+    } finally {
+      setModalSubmitting(false);
+    }
+  }
+
+  async function handleDeleteEnvironment(envId: string) {
+    if (!confirm("Are you sure you want to delete this environment?")) return;
+    try {
+      await apiFetch(`/environments/${envId}`, { method: "DELETE" });
+      loadData();
+    } catch (err) {
+      alert(
+        err instanceof Error ? err.message : "Failed to delete environment"
+      );
+    }
+  }
+
+  async function handleCreateDeployment(e: FormEvent) {
+    e.preventDefault();
+    if (!newDepEnvId) {
+      setModalError("Please select an environment.");
+      return;
+    }
+    setModalSubmitting(true);
+    setModalError("");
+    try {
+      await apiFetch(`/environments/${newDepEnvId}/deployments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          version: newDepVersion,
+        }),
+      });
+      setActiveModal(null);
+      setNewDepVersion("v1.0.0");
+      loadData();
+    } catch (err) {
+      setModalError(
+        err instanceof Error ? err.message : "Failed to create deployment"
+      );
+    } finally {
+      setModalSubmitting(false);
+    }
+  }
+
+  async function handleUpdateDeploymentStatus(
+    deploymentId: string,
+    status: string
+  ) {
+    try {
+      await apiFetch(`/deployments/${deploymentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      loadData();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to update deployment");
+    }
+  }
+
+  async function handleDeleteUser(userId: string) {
+    if (!confirm("Are you sure you want to delete this user?")) return;
+    try {
+      await apiFetch(`/auth/users/${userId}`, { method: "DELETE" });
+      loadUsers();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to delete user");
+    }
+  }
+
+  // --- Helper Getters ---
   function getProjectName(projectId: string) {
     return (
       projects.find((project) => project.id === projectId)?.name ||
@@ -458,9 +770,48 @@ export default function CloudMind() {
   }
 
   function statusClass(status: string) {
-    return `status-pill status-${status.toLowerCase()}`;
+    switch (status.toUpperCase()) {
+      case "SUCCESS":
+        return "status-badge status-success";
+      case "FAILED":
+        return "status-badge status-failed";
+      case "IN_PROGRESS":
+        return "status-badge status-progress";
+      default:
+        return "status-badge status-pending";
+    }
   }
 
+  const navItems = [
+    { id: "dashboard", label: "Dashboard", icon: "dashboard" as IconName },
+    { id: "projects", label: "Projects", icon: "projects" as IconName },
+    {
+      id: "applications",
+      label: "Applications",
+      icon: "applications" as IconName,
+    },
+    {
+      id: "environments",
+      label: "Environments",
+      icon: "environments" as IconName,
+    },
+    { id: "clusters", label: "Clusters", icon: "clusters" as IconName },
+    {
+      id: "deployments",
+      label: "Deployments",
+      icon: "deployments" as IconName,
+    },
+  ];
+
+  if (user?.role === "ADMIN") {
+    navItems.push({
+      id: "users",
+      label: "User Management",
+      icon: "users" as IconName,
+    });
+  }
+
+  // --- AUTH PAGE RENDER ---
   if (!token) {
     return (
       <main className="login-page">
@@ -468,90 +819,187 @@ export default function CloudMind() {
         <div className="login-background-shape shape-two" />
 
         <section className="login-card">
-          <div className="login-brand">
-            <div className="brand-icon">
-              <svg
-                width="34"
-                height="34"
-                viewBox="0 0 34 34"
-                fill="none"
-              >
-                <path
-                  d="M9.5 24.5h15.2c3.2 0 5.8-2.5 5.8-5.6 0-2.9-2.2-5.2-5-5.6C24.6 8.9 21.2 6 17.1 6c-4.2 0-7.8 3.1-8.5 7.1C5.7 13.5 4 16 4 19c0 3.1 2.4 5.5 5.5 5.5Z"
-                  fill="white"
-                />
-              </svg>
+          <div className="login-header">
+            <div className="login-brand">
+              <div className="brand-badge">
+                <Icon name="server" size={24} />
+              </div>
+
+              <div>
+                <span className="brand-eyebrow">Cloud Infrastructure</span>
+                <h2>CloudMind</h2>
+              </div>
             </div>
 
-            <div>
-              <div className="brand-name">
-                Cloud<span>Mind</span>
-              </div>
-              <div className="brand-tagline">
-                Cloud Management System
-              </div>
-            </div>
+            <p>
+              {authMode === "login"
+                ? "Sign in to manage your cloud infrastructure."
+                : "Create a new account with Admin or Developer access."}
+            </p>
           </div>
 
-          <div className="login-heading">
-            <h1>Welcome back</h1>
-            <p>Sign in to manage your cloud infrastructure.</p>
-          </div>
-
-          <form onSubmit={handleLogin}>
-            <div className="form-group">
-              <label>Email address</label>
-
-              <input
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="you@example.com"
-                required
-                autoComplete="email"
-              />
-            </div>
-
-            <div className="form-group">
-              <div className="password-label-row">
-                <label>Password</label>
-              </div>
-
-              <input
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="Enter your password"
-                required
-                autoComplete="current-password"
-              />
-            </div>
-
-            {loginError && (
-              <div className="login-error">
-                <span className="error-dot" />
-                <span>{loginError}</span>
-              </div>
-            )}
-
+          <div className="auth-tabs">
             <button
-              type="submit"
-              className="login-button"
-              disabled={loginLoading}
+              type="button"
+              className={`auth-tab ${authMode === "login" ? "active" : ""}`}
+              onClick={() => {
+                setAuthMode("login");
+                setLoginError("");
+              }}
             >
-              {loginLoading ? (
-                <>
-                  <span className="spinner" />
-                  Signing in...
-                </>
-              ) : (
-                <>
-                  Sign in
-                  <Icon name="arrow" size={18} />
-                </>
-              )}
+              Sign In
             </button>
-          </form>
+            <button
+              type="button"
+              className={`auth-tab ${authMode === "register" ? "active" : ""}`}
+              onClick={() => {
+                setAuthMode("register");
+                setLoginError("");
+              }}
+            >
+              Register New Account
+            </button>
+          </div>
+
+          {authMode === "login" ? (
+            <form onSubmit={handleLogin}>
+              <div className="form-group">
+                <label>Email address</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  required
+                  autoComplete="email"
+                />
+              </div>
+
+              <div className="form-group">
+                <div className="password-label-row">
+                  <label>Password</label>
+                </div>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password"
+                  required
+                  autoComplete="current-password"
+                />
+              </div>
+
+              {loginError && (
+                <div className="login-error">
+                  <span className="error-dot" />
+                  <span>{loginError}</span>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className="login-button"
+                disabled={loginLoading}
+              >
+                {loginLoading ? (
+                  <>
+                    <span className="spinner" />
+                    Signing in...
+                  </>
+                ) : (
+                  <>
+                    Sign in
+                    <Icon name="arrow" size={18} />
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                className="quick-demo-btn"
+                onClick={handleQuickDemo}
+              >
+                <Icon name="shield" size={16} />
+                Fill Demo Admin Credentials (admin@cloudmind.io)
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleRegister}>
+              <div className="form-group">
+                <label>Full Name</label>
+                <input
+                  type="text"
+                  value={regFullName}
+                  onChange={(e) => setRegFullName(e.target.value)}
+                  placeholder="Jane Developer"
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Email address</label>
+                <input
+                  type="email"
+                  value={regEmail}
+                  onChange={(e) => setRegEmail(e.target.value)}
+                  placeholder="developer@example.com"
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Password</label>
+                <input
+                  type="password"
+                  value={regPassword}
+                  onChange={(e) => setRegPassword(e.target.value)}
+                  placeholder="Choose a secure password"
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Account Role</label>
+                <select
+                  className="form-select"
+                  value={regRole}
+                  onChange={(e) => setRegRole(e.target.value)}
+                >
+                  <option value="DEVELOPER">
+                    User / Developer (Manage own projects)
+                  </option>
+                  <option value="ADMIN">
+                    Admin (Full control & user management)
+                  </option>
+                </select>
+              </div>
+
+              {loginError && (
+                <div className="login-error">
+                  <span className="error-dot" />
+                  <span>{loginError}</span>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className="login-button"
+                disabled={loginLoading}
+              >
+                {loginLoading ? (
+                  <>
+                    <span className="spinner" />
+                    Creating account...
+                  </>
+                ) : (
+                  <>
+                    Create Account & Sign in
+                    <Icon name="arrow" size={18} />
+                  </>
+                )}
+              </button>
+            </form>
+          )}
 
           <div className="login-footer">
             <span className="online-dot" />
@@ -562,17 +1010,14 @@ export default function CloudMind() {
     );
   }
 
+  // --- LOGGED-IN APP SHELL RENDER ---
   return (
     <div className="app-shell">
+      {/* SIDEBAR */}
       <aside className="sidebar">
         <div className="sidebar-brand">
           <div className="sidebar-brand-icon">
-            <svg
-              width="25"
-              height="25"
-              viewBox="0 0 34 34"
-              fill="none"
-            >
+            <svg width="25" height="25" viewBox="0 0 34 34" fill="none">
               <path
                 d="M9.5 24.5h15.2c3.2 0 5.8-2.5 5.8-5.6 0-2.9-2.2-5.2-5-5.6C24.6 8.9 21.2 6 17.1 6c-4.2 0-7.8 3.1-8.5 7.1C5.7 13.5 4 16 4 19c0 3.1 2.4 5.5 5.5 5.5Z"
                 fill="white"
@@ -584,19 +1029,19 @@ export default function CloudMind() {
             <div className="sidebar-brand-name">
               Cloud<span>Mind</span>
             </div>
-            <div className="sidebar-version">CONTROL PLANE</div>
+            <div className="sidebar-version">
+              {user?.role === "ADMIN" ? "ADMIN CONTROL PLANE" : "DEV WORKSPACE"}
+            </div>
           </div>
         </div>
 
-        <div className="nav-section-title">Workspace</div>
+        <div className="nav-section-title">Navigation</div>
 
         <nav className="navigation">
-          {navigation.map((item) => (
+          {navItems.map((item) => (
             <button
               key={item.id}
-              className={`nav-item ${
-                activePage === item.id ? "active" : ""
-              }`}
+              className={`nav-item ${activePage === item.id ? "active" : ""}`}
               onClick={() => setActivePage(item.id)}
             >
               <Icon name={item.icon} size={19} />
@@ -604,6 +1049,10 @@ export default function CloudMind() {
 
               {item.id === "deployments" && deployments.length > 0 && (
                 <span className="nav-count">{deployments.length}</span>
+              )}
+
+              {item.id === "users" && users.length > 0 && (
+                <span className="nav-count">{users.length}</span>
               )}
             </button>
           ))}
@@ -614,7 +1063,11 @@ export default function CloudMind() {
             <span className="online-dot" />
             <div>
               <strong>System online</strong>
-              <span>All services operational</span>
+              <span>
+                {user?.role === "ADMIN"
+                  ? "Admin Privileges"
+                  : "Developer Access"}
+              </span>
             </div>
           </div>
 
@@ -625,24 +1078,31 @@ export default function CloudMind() {
         </div>
       </aside>
 
+      {/* MAIN CONTENT AREA */}
       <main className="main-content">
         <header className="topbar">
           <div>
             <div className="breadcrumb">
-              CloudMind <span>/</span> {getPageTitle()}
+              CloudMind <span>/</span>{" "}
+              {navItems.find((n) => n.id === activePage)?.label || "Dashboard"}
             </div>
-            <h1>{getPageTitle()}</h1>
+            <h1>
+              {navItems.find((n) => n.id === activePage)?.label || "Dashboard"}
+            </h1>
           </div>
 
           <div className="topbar-actions">
             <div className="backend-status">
               <span className="online-dot" />
-              Backend connected
+              API Connected
             </div>
 
             <button
               className="icon-button"
-              onClick={loadData}
+              onClick={() => {
+                loadData();
+                if (user?.role === "ADMIN") loadUsers();
+              }}
               disabled={loading}
               title="Refresh"
             >
@@ -658,7 +1118,9 @@ export default function CloudMind() {
 
               <div className="user-details">
                 <strong>{user?.full_name || "CloudMind User"}</strong>
-                <span>{user?.role || "User"}</span>
+                <span className={`role-badge ${user?.role?.toLowerCase()}`}>
+                  {user?.role || "USER"}
+                </span>
               </div>
             </div>
           </div>
@@ -667,30 +1129,42 @@ export default function CloudMind() {
         <div className="content-area">
           {error && <div className="error-banner">{error}</div>}
 
+          {/* DASHBOARD TAB */}
           {activePage === "dashboard" && (
             <>
               <section className="hero-card">
                 <div>
                   <div className="hero-eyebrow">
                     <span className="online-dot" />
-                    CLOUD INFRASTRUCTURE CONTROL
+                    AUTONOMOUS CLOUD OPERATIONS
                   </div>
 
-                  <h2>Welcome to CloudMind</h2>
+                  <h2>Welcome back, {user?.full_name || "Operator"}</h2>
 
                   <p>
-                    Manage projects, applications, environments,
-                    clusters and deployments from one unified control
-                    plane.
+                    {user?.role === "ADMIN"
+                      ? "Full administrative access: create projects, register clusters, review all microservices, and manage user accounts."
+                      : "Developer workspace: create and deploy microservices, manage your application environments, and view release telemetry."}
                   </p>
 
-                  <button
-                    className="hero-button"
-                    onClick={() => setActivePage("projects")}
-                  >
-                    Explore projects
-                    <Icon name="arrow" size={17} />
-                  </button>
+                  <div style={{ display: "flex", gap: "12px", marginTop: "20px" }}>
+                    <button
+                      className="hero-button"
+                      onClick={() => setActiveModal("project")}
+                    >
+                      <Icon name="plus" size={17} />
+                      New Project
+                    </button>
+
+                    <button
+                      className="hero-button"
+                      style={{ background: "rgba(255,255,255,0.18)" }}
+                      onClick={() => setActiveModal("cluster")}
+                    >
+                      <Icon name="server" size={17} />
+                      Register Cluster
+                    </button>
+                  </div>
                 </div>
 
                 <div className="hero-visual">
@@ -707,8 +1181,8 @@ export default function CloudMind() {
                 <div>
                   <h2>Infrastructure overview</h2>
                   <p>
-                    Real-time resources loaded from your CloudMind
-                    backend.
+                    Real-time resources connected to your CloudMind control
+                    plane.
                   </p>
                 </div>
 
@@ -761,7 +1235,7 @@ export default function CloudMind() {
                   <div className="panel-header">
                     <div>
                       <h3>Recent deployments</h3>
-                      <p>Latest deployment activity</p>
+                      <p>Latest release activity</p>
                     </div>
 
                     <button
@@ -777,7 +1251,7 @@ export default function CloudMind() {
                     <EmptyState
                       icon="deployments"
                       title="No deployments yet"
-                      description="Deployment records will appear here."
+                      description="Deployments will appear here once triggered."
                     />
                   ) : (
                     <div className="deployment-list">
@@ -793,9 +1267,7 @@ export default function CloudMind() {
                           <div className="deployment-info">
                             <strong>{deployment.version}</strong>
                             <span>
-                              {getEnvironmentName(
-                                deployment.environment_id
-                              )}
+                              {getEnvironmentName(deployment.environment_id)}
                             </span>
                           </div>
 
@@ -811,8 +1283,8 @@ export default function CloudMind() {
                 <div className="panel">
                   <div className="panel-header">
                     <div>
-                      <h3>Infrastructure</h3>
-                      <p>Connected resources</p>
+                      <h3>Fleet Summary</h3>
+                      <p>Active compute & resources</p>
                     </div>
                   </div>
 
@@ -840,24 +1312,51 @@ export default function CloudMind() {
                       label="Deployments"
                       value={deployments.length}
                     />
+
+                    {user?.role === "ADMIN" && (
+                      <InfrastructureItem
+                        icon="users"
+                        label="Registered Users"
+                        value={users.length}
+                      />
+                    )}
                   </div>
                 </div>
               </section>
             </>
           )}
 
+          {/* PROJECTS TAB */}
           {activePage === "projects" && (
             <ResourcePage
               title="Projects"
-              description="Organize your applications and cloud resources into projects."
+              description="Organize your microservices, repositories, and environments."
               icon="projects"
               count={projects.length}
+              action={
+                <button
+                  className="btn-primary"
+                  onClick={() => setActiveModal("project")}
+                >
+                  <Icon name="plus" size={16} />
+                  Add Project
+                </button>
+              }
             >
               {projects.length === 0 ? (
                 <EmptyState
                   icon="projects"
                   title="No projects found"
-                  description="Create a project through the CloudMind API to see it here."
+                  description="Get started by creating your first CloudMind project."
+                  action={
+                    <button
+                      className="btn-primary"
+                      onClick={() => setActiveModal("project")}
+                    >
+                      <Icon name="plus" size={16} />
+                      Create Project
+                    </button>
+                  }
                 />
               ) : (
                 <div className="resource-grid">
@@ -881,9 +1380,20 @@ export default function CloudMind() {
                           "CloudMind infrastructure project"}
                       </p>
 
-                      <div className="resource-footer">
-                        <span>Project ID</span>
-                        <code>{project.id.slice(0, 12)}...</code>
+                      <div className="card-actions-row">
+                        <div className="resource-footer" style={{ margin: 0 }}>
+                          <span>ID:</span>
+                          <code>{project.id.slice(0, 10)}...</code>
+                        </div>
+
+                        <button
+                          className="btn-danger-sm"
+                          onClick={() => handleDeleteProject(project.id)}
+                          title="Delete Project"
+                        >
+                          <Icon name="trash" size={14} />
+                          Delete
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -892,18 +1402,51 @@ export default function CloudMind() {
             </ResourcePage>
           )}
 
+          {/* APPLICATIONS TAB */}
           {activePage === "applications" && (
             <ResourcePage
               title="Applications"
-              description="Manage applications connected to your CloudMind projects."
+              description="Manage microservices connected to your CloudMind projects."
               icon="applications"
               count={applications.length}
+              action={
+                <button
+                  className="btn-primary"
+                  onClick={() => {
+                    if (projects.length > 0)
+                      setNewAppProjectId(projects[0].id);
+                    setActiveModal("application");
+                  }}
+                  disabled={projects.length === 0}
+                >
+                  <Icon name="plus" size={16} />
+                  Add Application
+                </button>
+              }
             >
               {applications.length === 0 ? (
                 <EmptyState
                   icon="applications"
                   title="No applications found"
-                  description="Applications registered with CloudMind will appear here."
+                  description={
+                    projects.length === 0
+                      ? "Create a project first before registering an application."
+                      : "Register your first microservice or application."
+                  }
+                  action={
+                    projects.length > 0 ? (
+                      <button
+                        className="btn-primary"
+                        onClick={() => {
+                          setNewAppProjectId(projects[0].id);
+                          setActiveModal("application");
+                        }}
+                      >
+                        <Icon name="plus" size={16} />
+                        Register Application
+                      </button>
+                    ) : undefined
+                  }
                 />
               ) : (
                 <div className="table-container">
@@ -913,7 +1456,8 @@ export default function CloudMind() {
                         <th>Application</th>
                         <th>Project</th>
                         <th>Repository</th>
-                        <th>Application ID</th>
+                        <th>ID</th>
+                        <th>Actions</th>
                       </tr>
                     </thead>
 
@@ -925,14 +1469,11 @@ export default function CloudMind() {
                               <div className="mini-icon">
                                 <Icon name="applications" size={17} />
                               </div>
-
                               <strong>{application.name}</strong>
                             </div>
                           </td>
 
-                          <td>
-                            {getProjectName(application.project_id)}
-                          </td>
+                          <td>{getProjectName(application.project_id)}</td>
 
                           <td>
                             {application.repo_url ? (
@@ -948,9 +1489,19 @@ export default function CloudMind() {
                           </td>
 
                           <td>
-                            <code>
-                              {application.id.slice(0, 12)}...
-                            </code>
+                            <code>{application.id.slice(0, 10)}...</code>
+                          </td>
+
+                          <td>
+                            <button
+                              className="btn-danger-sm"
+                              onClick={() =>
+                                handleDeleteApplication(application.id)
+                              }
+                            >
+                              <Icon name="trash" size={14} />
+                              Delete
+                            </button>
                           </td>
                         </tr>
                       ))}
@@ -961,33 +1512,67 @@ export default function CloudMind() {
             </ResourcePage>
           )}
 
+          {/* ENVIRONMENTS TAB */}
           {activePage === "environments" && (
             <ResourcePage
               title="Environments"
-              description="Application environments connected to your clusters."
+              description="Deploy and route applications across isolated clusters."
               icon="environments"
               count={environments.length}
+              action={
+                <button
+                  className="btn-primary"
+                  onClick={() => {
+                    if (applications.length > 0)
+                      setNewEnvAppId(applications[0].id);
+                    if (clusters.length > 0)
+                      setNewEnvClusterId(clusters[0].id);
+                    setActiveModal("environment");
+                  }}
+                  disabled={applications.length === 0}
+                >
+                  <Icon name="plus" size={16} />
+                  Add Environment
+                </button>
+              }
             >
               {environments.length === 0 ? (
                 <EmptyState
                   icon="environments"
                   title="No environments found"
-                  description="Create an environment through the API to see it here."
+                  description={
+                    applications.length === 0
+                      ? "Create an application first before adding environments."
+                      : "Create an environment for production, staging, or testing."
+                  }
+                  action={
+                    applications.length > 0 ? (
+                      <button
+                        className="btn-primary"
+                        onClick={() => {
+                          setNewEnvAppId(applications[0].id);
+                          if (clusters.length > 0)
+                            setNewEnvClusterId(clusters[0].id);
+                          setActiveModal("environment");
+                        }}
+                      >
+                        <Icon name="plus" size={16} />
+                        Add Environment
+                      </button>
+                    ) : undefined
+                  }
                 />
               ) : (
                 <div className="resource-grid">
                   {environments.map((environment) => (
-                    <div
-                      className="resource-card"
-                      key={environment.id}
-                    >
+                    <div className="resource-card" key={environment.id}>
                       <div className="resource-card-top">
                         <div className="resource-icon">
                           <Icon name="environments" size={21} />
                         </div>
 
                         <span className="environment-badge">
-                          Environment
+                          {environment.name}
                         </span>
                       </div>
 
@@ -995,14 +1580,27 @@ export default function CloudMind() {
 
                       <p>
                         Application:{" "}
-                        {getApplicationName(
-                          environment.application_id
-                        )}
+                        <strong>
+                          {getApplicationName(environment.application_id)}
+                        </strong>
                       </p>
 
-                      <div className="resource-footer">
-                        <span>Environment ID</span>
-                        <code>{environment.id.slice(0, 12)}...</code>
+                      <div className="card-actions-row">
+                        <div className="resource-footer" style={{ margin: 0 }}>
+                          <span>ID:</span>
+                          <code>{environment.id.slice(0, 10)}...</code>
+                        </div>
+
+                        <button
+                          className="btn-danger-sm"
+                          onClick={() =>
+                            handleDeleteEnvironment(environment.id)
+                          }
+                          title="Delete Environment"
+                        >
+                          <Icon name="trash" size={14} />
+                          Delete
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -1011,18 +1609,37 @@ export default function CloudMind() {
             </ResourcePage>
           )}
 
+          {/* CLUSTERS TAB */}
           {activePage === "clusters" && (
             <ResourcePage
-              title="Clusters"
-              description="View the compute clusters available to CloudMind."
+              title="Compute Clusters"
+              description="Manage the Kubernetes and cloud clusters available to CloudMind."
               icon="clusters"
               count={clusters.length}
+              action={
+                <button
+                  className="btn-primary"
+                  onClick={() => setActiveModal("cluster")}
+                >
+                  <Icon name="plus" size={16} />
+                  Register Cluster
+                </button>
+              }
             >
               {clusters.length === 0 ? (
                 <EmptyState
                   icon="clusters"
                   title="No clusters found"
-                  description="Register a cluster through the CloudMind API."
+                  description="Register an AWS EKS, GCP GKE, or Azure AKS cluster."
+                  action={
+                    <button
+                      className="btn-primary"
+                      onClick={() => setActiveModal("cluster")}
+                    >
+                      <Icon name="plus" size={16} />
+                      Register Cluster
+                    </button>
+                  }
                 />
               ) : (
                 <div className="resource-grid">
@@ -1043,23 +1660,35 @@ export default function CloudMind() {
 
                       <p>
                         {cluster.provider || "Cloud infrastructure"}{" "}
-                        {cluster.region
-                          ? `• ${cluster.region}`
-                          : ""}
+                        {cluster.region ? `• ${cluster.region}` : ""}
                       </p>
 
                       <div className="cluster-meta">
                         <div>
                           <span>Provider</span>
-                          <strong>
-                            {cluster.provider || "—"}
-                          </strong>
+                          <strong>{cluster.provider || "—"}</strong>
                         </div>
 
                         <div>
                           <span>Region</span>
                           <strong>{cluster.region || "—"}</strong>
                         </div>
+                      </div>
+
+                      <div className="card-actions-row">
+                        <div className="resource-footer" style={{ margin: 0 }}>
+                          <span>Cluster ID:</span>
+                          <code>{cluster.id.slice(0, 10)}...</code>
+                        </div>
+
+                        <button
+                          className="btn-danger-sm"
+                          onClick={() => handleDeleteCluster(cluster.id)}
+                          title="Delete Cluster"
+                        >
+                          <Icon name="trash" size={14} />
+                          Delete
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -1068,18 +1697,51 @@ export default function CloudMind() {
             </ResourcePage>
           )}
 
+          {/* DEPLOYMENTS TAB */}
           {activePage === "deployments" && (
             <ResourcePage
               title="Deployments"
-              description="Track application deployment versions and their current status."
+              description="Track application releases, trigger continuous versions, and manage rollouts."
               icon="deployments"
               count={deployments.length}
+              action={
+                <button
+                  className="btn-primary"
+                  onClick={() => {
+                    if (environments.length > 0)
+                      setNewDepEnvId(environments[0].id);
+                    setActiveModal("deployment");
+                  }}
+                  disabled={environments.length === 0}
+                >
+                  <Icon name="plus" size={16} />
+                  Trigger Deployment
+                </button>
+              }
             >
               {deployments.length === 0 ? (
                 <EmptyState
                   icon="deployments"
                   title="No deployments found"
-                  description="Create a deployment through the CloudMind API."
+                  description={
+                    environments.length === 0
+                      ? "Create an environment first to deploy software releases."
+                      : "Trigger your first deployment to begin tracking rollouts."
+                  }
+                  action={
+                    environments.length > 0 ? (
+                      <button
+                        className="btn-primary"
+                        onClick={() => {
+                          setNewDepEnvId(environments[0].id);
+                          setActiveModal("deployment");
+                        }}
+                      >
+                        <Icon name="plus" size={16} />
+                        Trigger Deployment
+                      </button>
+                    ) : undefined
+                  }
                 />
               ) : (
                 <div className="table-container">
@@ -1090,6 +1752,7 @@ export default function CloudMind() {
                         <th>Environment</th>
                         <th>Status</th>
                         <th>Deployment ID</th>
+                        <th>Status Controls</th>
                       </tr>
                     </thead>
 
@@ -1101,23 +1764,16 @@ export default function CloudMind() {
                               <div className="mini-icon">
                                 <Icon name="deployments" size={17} />
                               </div>
-
                               <strong>{deployment.version}</strong>
                             </div>
                           </td>
 
                           <td>
-                            {getEnvironmentName(
-                              deployment.environment_id
-                            )}
+                            {getEnvironmentName(deployment.environment_id)}
                           </td>
 
                           <td>
-                            <span
-                              className={statusClass(
-                                deployment.status
-                              )}
-                            >
+                            <span className={statusClass(deployment.status)}>
                               {deployment.status === "SUCCESS" && (
                                 <Icon name="check" size={14} />
                               )}
@@ -1126,9 +1782,38 @@ export default function CloudMind() {
                           </td>
 
                           <td>
-                            <code>
-                              {deployment.id.slice(0, 12)}...
-                            </code>
+                            <code>{deployment.id.slice(0, 10)}...</code>
+                          </td>
+
+                          <td>
+                            <div style={{ display: "flex", gap: "6px" }}>
+                              <button
+                                className="btn-secondary"
+                                style={{ padding: "4px 8px", fontSize: "11px" }}
+                                onClick={() =>
+                                  handleUpdateDeploymentStatus(
+                                    deployment.id,
+                                    "SUCCESS"
+                                  )
+                                }
+                                title="Mark as Succeeded"
+                              >
+                                Success
+                              </button>
+                              <button
+                                className="btn-danger-sm"
+                                style={{ padding: "4px 8px", fontSize: "11px" }}
+                                onClick={() =>
+                                  handleUpdateDeploymentStatus(
+                                    deployment.id,
+                                    "FAILED"
+                                  )
+                                }
+                                title="Mark as Failed"
+                              >
+                                Fail
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -1138,8 +1823,481 @@ export default function CloudMind() {
               )}
             </ResourcePage>
           )}
+
+          {/* USERS MANAGEMENT TAB (ADMIN ONLY) */}
+          {activePage === "users" && user?.role === "ADMIN" && (
+            <ResourcePage
+              title="User & Access Management"
+              description="Review all registered user accounts, inspect permission levels, and manage credentials."
+              icon="users"
+              count={users.length}
+            >
+              <div className="table-container">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>User</th>
+                      <th>Email</th>
+                      <th>Role</th>
+                      <th>Registered</th>
+                      <th>User ID</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {users.map((u) => (
+                      <tr key={u.id}>
+                        <td>
+                          <div className="table-name">
+                            <div className="avatar" style={{ width: 28, height: 28, fontSize: 12 }}>
+                              {(u.full_name || u.email || "U").charAt(0).toUpperCase()}
+                            </div>
+                            <strong>{u.full_name || "CloudMind User"}</strong>
+                            {u.id === user?.id && (
+                              <span style={{ fontSize: "10px", color: "#64748b", marginLeft: "4px" }}>
+                                (You)
+                              </span>
+                            )}
+                          </div>
+                        </td>
+
+                        <td>{u.email}</td>
+
+                        <td>
+                          <span className={`role-badge ${u.role?.toLowerCase()}`}>
+                            {u.role}
+                          </span>
+                        </td>
+
+                        <td>
+                          {u.created_at
+                            ? new Date(u.created_at).toLocaleDateString()
+                            : "—"}
+                        </td>
+
+                        <td>
+                          <code>{u.id?.slice(0, 10)}...</code>
+                        </td>
+
+                        <td>
+                          {u.id !== user?.id ? (
+                            <button
+                              className="btn-danger-sm"
+                              onClick={() => handleDeleteUser(u.id!)}
+                            >
+                              <Icon name="trash" size={14} />
+                              Delete
+                            </button>
+                          ) : (
+                            <span style={{ fontSize: "12px", color: "#94a3b8" }}>
+                              Active Account
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </ResourcePage>
+          )}
         </div>
       </main>
+
+      {/* =========================================================
+          MODAL DIALOGS
+      ========================================================= */}
+
+      {/* PROJECT MODAL */}
+      {activeModal === "project" && (
+        <div className="modal-backdrop">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3>Create New Project</h3>
+              <button
+                className="modal-close"
+                onClick={() => setActiveModal(null)}
+              >
+                &times;
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateProject}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label>Project Name *</label>
+                  <input
+                    type="text"
+                    value={newProjectName}
+                    onChange={(e) => setNewProjectName(e.target.value)}
+                    placeholder="e.g. Core Checkout Services"
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Description</label>
+                  <textarea
+                    className="form-textarea"
+                    rows={3}
+                    value={newProjectDesc}
+                    onChange={(e) => setNewProjectDesc(e.target.value)}
+                    placeholder="Brief description of project purpose..."
+                  />
+                </div>
+
+                {modalError && (
+                  <div className="login-error">
+                    <span className="error-dot" />
+                    <span>{modalError}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setActiveModal(null)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  disabled={modalSubmitting}
+                >
+                  {modalSubmitting ? "Creating..." : "Create Project"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* APPLICATION MODAL */}
+      {activeModal === "application" && (
+        <div className="modal-backdrop">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3>Add New Application</h3>
+              <button
+                className="modal-close"
+                onClick={() => setActiveModal(null)}
+              >
+                &times;
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateApplication}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label>Parent Project *</label>
+                  <select
+                    className="form-select"
+                    value={newAppProjectId}
+                    onChange={(e) => setNewAppProjectId(e.target.value)}
+                    required
+                  >
+                    {projects.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Application Name *</label>
+                  <input
+                    type="text"
+                    value={newAppName}
+                    onChange={(e) => setNewAppName(e.target.value)}
+                    placeholder="e.g. payment-service"
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Git Repository URL</label>
+                  <input
+                    type="url"
+                    value={newAppRepoUrl}
+                    onChange={(e) => setNewAppRepoUrl(e.target.value)}
+                    placeholder="https://github.com/org/payment-service"
+                  />
+                </div>
+
+                {modalError && (
+                  <div className="login-error">
+                    <span className="error-dot" />
+                    <span>{modalError}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setActiveModal(null)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  disabled={modalSubmitting}
+                >
+                  {modalSubmitting ? "Adding..." : "Add Application"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* CLUSTER MODAL */}
+      {activeModal === "cluster" && (
+        <div className="modal-backdrop">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3>Register Compute Cluster</h3>
+              <button
+                className="modal-close"
+                onClick={() => setActiveModal(null)}
+              >
+                &times;
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateCluster}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label>Cluster Identifier *</label>
+                  <input
+                    type="text"
+                    value={newClusterName}
+                    onChange={(e) => setNewClusterName(e.target.value)}
+                    placeholder="e.g. production-us-east-1"
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Cloud Provider</label>
+                  <select
+                    className="form-select"
+                    value={newClusterProvider}
+                    onChange={(e) => setNewClusterProvider(e.target.value)}
+                  >
+                    <option value="AWS EKS">AWS EKS</option>
+                    <option value="GCP GKE">Google Cloud GKE</option>
+                    <option value="Azure AKS">Azure AKS</option>
+                    <option value="Bare Metal">Bare Metal Kubernetes</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Region</label>
+                  <input
+                    type="text"
+                    value={newClusterRegion}
+                    onChange={(e) => setNewClusterRegion(e.target.value)}
+                    placeholder="e.g. us-east-1"
+                    required
+                  />
+                </div>
+
+                {modalError && (
+                  <div className="login-error">
+                    <span className="error-dot" />
+                    <span>{modalError}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setActiveModal(null)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  disabled={modalSubmitting}
+                >
+                  {modalSubmitting ? "Registering..." : "Register Cluster"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ENVIRONMENT MODAL */}
+      {activeModal === "environment" && (
+        <div className="modal-backdrop">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3>Add Environment</h3>
+              <button
+                className="modal-close"
+                onClick={() => setActiveModal(null)}
+              >
+                &times;
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateEnvironment}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label>Application *</label>
+                  <select
+                    className="form-select"
+                    value={newEnvAppId}
+                    onChange={(e) => setNewEnvAppId(e.target.value)}
+                    required
+                  >
+                    {applications.map((app) => (
+                      <option key={app.id} value={app.id}>
+                        {app.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Environment Name *</label>
+                  <input
+                    type="text"
+                    value={newEnvName}
+                    onChange={(e) => setNewEnvName(e.target.value)}
+                    placeholder="production / staging / preview"
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Attached Cluster</label>
+                  <select
+                    className="form-select"
+                    value={newEnvClusterId}
+                    onChange={(e) => setNewEnvClusterId(e.target.value)}
+                  >
+                    <option value="">None (Unassigned)</option>
+                    {clusters.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} ({c.provider || "Cloud"})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {modalError && (
+                  <div className="login-error">
+                    <span className="error-dot" />
+                    <span>{modalError}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setActiveModal(null)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  disabled={modalSubmitting}
+                >
+                  {modalSubmitting ? "Creating..." : "Create Environment"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* DEPLOYMENT MODAL */}
+      {activeModal === "deployment" && (
+        <div className="modal-backdrop">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h3>Trigger Deployment</h3>
+              <button
+                className="modal-close"
+                onClick={() => setActiveModal(null)}
+              >
+                &times;
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateDeployment}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label>Target Environment *</label>
+                  <select
+                    className="form-select"
+                    value={newDepEnvId}
+                    onChange={(e) => setNewDepEnvId(e.target.value)}
+                    required
+                  >
+                    {environments.map((env) => (
+                      <option key={env.id} value={env.id}>
+                        {env.name} ({getApplicationName(env.application_id)})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Version Tag / Commit SHA *</label>
+                  <input
+                    type="text"
+                    value={newDepVersion}
+                    onChange={(e) => setNewDepVersion(e.target.value)}
+                    placeholder="e.g. v2.4.2 or release-2026-09"
+                    required
+                  />
+                </div>
+
+                {modalError && (
+                  <div className="login-error">
+                    <span className="error-dot" />
+                    <span>{modalError}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setActiveModal(null)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  disabled={modalSubmitting}
+                >
+                  {modalSubmitting ? "Triggering..." : "Trigger Deployment"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1179,12 +2337,14 @@ function ResourcePage({
   description,
   icon,
   count,
+  action,
   children,
 }: {
   title: string;
   description: string;
   icon: IconName;
   count: number;
+  action?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
@@ -1194,10 +2354,14 @@ function ResourcePage({
           <Icon name={icon} size={25} />
         </div>
 
-        <div>
+        <div style={{ flex: 1 }}>
           <div className="page-title-row">
-            <h2>{title}</h2>
-            <span className="count-badge">{count}</span>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <h2>{title}</h2>
+              <span className="count-badge">{count}</span>
+            </div>
+
+            {action}
           </div>
 
           <p>{description}</p>
@@ -1213,10 +2377,12 @@ function EmptyState({
   icon,
   title,
   description,
+  action,
 }: {
   icon: IconName;
   title: string;
   description: string;
+  action?: React.ReactNode;
 }) {
   return (
     <div className="empty-state">
@@ -1226,6 +2392,7 @@ function EmptyState({
 
       <h3>{title}</h3>
       <p>{description}</p>
+      {action && <div style={{ marginTop: "16px" }}>{action}</div>}
     </div>
   );
 }

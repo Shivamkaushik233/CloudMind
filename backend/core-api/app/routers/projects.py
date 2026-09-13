@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Project, User
+from app.models import Project, User, Role
 from app.schemas import ProjectCreate, ProjectOut
 from app.auth import get_current_user
 
@@ -30,6 +30,8 @@ def create_project(
 def list_projects(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
+    if current_user.role == Role.ADMIN:
+        return db.query(Project).all()
     return db.query(Project).filter(Project.owner_id == current_user.id).all()
 
 
@@ -58,6 +60,6 @@ def _get_owned_project(db: Session, project_id: str, current_user: User) -> Proj
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    if project.owner_id != current_user.id:
+    if current_user.role != Role.ADMIN and project.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not your project")
     return project

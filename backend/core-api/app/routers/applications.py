@@ -51,6 +51,17 @@ def get_application(
     return app_
 
 
+@router.delete("/applications/{application_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_application(
+    application_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    app_ = _get_owned_application(db, application_id, current_user)
+    db.delete(app_)
+    db.commit()
+
+
 def _get_owned_application(db: Session, application_id: str, current_user: User) -> Application:
     app_ = db.query(Application).filter(Application.id == application_id).first()
     if not app_:

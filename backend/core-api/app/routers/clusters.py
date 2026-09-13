@@ -16,7 +16,7 @@ router = APIRouter(prefix="/clusters", tags=["clusters"])
     response_model=ClusterOut,
     status_code=status.HTTP_201_CREATED,
     dependencies=[
-        Depends(require_roles(Role.ADMIN, Role.DEVOPS, Role.DEVELOPER))
+        Depends(require_roles(Role.ADMIN, Role.DEVOPS))
     ],
 )
 def create_cluster(

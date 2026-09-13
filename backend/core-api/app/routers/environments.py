@@ -49,6 +49,17 @@ def list_environments(
     return db.query(Environment).filter(Environment.application_id == application_id).all()
 
 
+@router.delete("/environments/{environment_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_environment(
+    environment_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    env = _get_owned_environment(db, environment_id, current_user)
+    db.delete(env)
+    db.commit()
+
+
 def _get_owned_environment(db: Session, environment_id: str, current_user: User) -> Environment:
     env = db.query(Environment).filter(Environment.id == environment_id).first()
     if not env:

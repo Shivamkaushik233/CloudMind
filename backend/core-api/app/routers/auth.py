@@ -1,11 +1,19 @@
+from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import User
+from app.models import User, Role
 from app.schemas import UserCreate, UserOut, Token
-from app.auth import hash_password, verify_password, create_access_token, get_current_user
+from app.auth import (
+    hash_password,
+    verify_password,
+    create_access_token,
+    get_current_user,
+    require_roles,
+)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -45,3 +53,38 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 @router.get("/me", response_model=UserOut)
 def read_me(current_user: User = Depends(get_current_user)):
     return current_user
+
+
+@router.get(
+    "/users",
+    response_model=List[UserOut],
+    dependencies=[Depends(require_roles(Role.ADMIN))],
+)
+def list_users(db: Session = Depends(get_db)):
+    return db.query(User).order_by(User.created_at.desc()).all()
+
+
+@router.delete(
+    "/users/{user_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_roles(Role.ADMIN))],
+)
+def delete_user(
+    user_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if user_id == current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete your own administrative account",
+        )
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+    db.delete(user)
+    db.commit()
+
