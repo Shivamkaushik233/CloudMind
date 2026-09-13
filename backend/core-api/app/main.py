@@ -1,7 +1,15 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import Base, engine
-from app.routers import auth, projects, applications, environments, clusters, deployments
+from app.routers import (
+    auth,
+    projects,
+    applications,
+    environments,
+    clusters,
+    deployments,
+)
 
 # Dev-friendly: create tables on startup instead of requiring a migration
 # tool for this stage. Swap for Alembic migrations once the schema needs
@@ -16,6 +24,17 @@ app = FastAPI(
         "Phase 1 of the CloudMind roadmap — see /docs/PROJECT_BRIEF.md."
     ),
     version="0.1.0",
+)
+
+# Allow the deployed CloudMind frontend to communicate with the API
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://cloudmind-frontend-5g86.onrender.com",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
