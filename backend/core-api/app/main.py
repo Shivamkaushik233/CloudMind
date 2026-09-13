@@ -18,6 +18,18 @@ app = FastAPI(
     version="0.1.0",
 )
 
+
+@app.get("/", tags=["meta"])
+def root():
+    return {
+        "service": "CloudMind",
+        "status": "running",
+        "message": "CloudMind Core API is live",
+        "docs": "/docs",
+        "health": "/health",
+    }
+
+
 app.include_router(auth.router)
 app.include_router(projects.router)
 app.include_router(applications.router)
