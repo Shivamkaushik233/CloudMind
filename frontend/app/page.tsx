@@ -1,8 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 
 const API_URL = "https://cloudmind-87ph.onrender.com";
+
+type User = {
+  id?: string;
+  email?: string;
+  full_name?: string;
+  role?: string;
+};
 
 type Project = {
   id: string;
@@ -14,7 +21,7 @@ type Application = {
   id: string;
   name: string;
   project_id: string;
-  repository_url?: string;
+  repo_url?: string;
 };
 
 type Environment = {
@@ -39,27 +46,22 @@ type Deployment = {
   created_at?: string;
 };
 
-type User = {
-  email: string;
-  full_name: string;
-  role: string;
-};
-
 type IconName =
   | "dashboard"
-  | "folder"
-  | "apps"
-  | "server"
-  | "cluster"
-  | "rocket"
-  | "search"
-  | "bell"
-  | "chevron"
+  | "projects"
+  | "applications"
+  | "environments"
+  | "clusters"
+  | "deployments"
   | "refresh"
+  | "logout"
+  | "plus"
+  | "arrow"
   | "check"
-  | "info"
-  | "activity"
-  | "database";
+  | "server"
+  | "layers"
+  | "box"
+  | "activity";
 
 function Icon({
   name,
@@ -90,75 +92,44 @@ function Icon({
         </svg>
       );
 
-    case "folder":
+    case "projects":
       return (
         <svg {...common}>
           <path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H10l2 2h6.5A2.5 2.5 0 0 1 21 9.5v7A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5z" />
         </svg>
       );
 
-    case "apps":
+    case "applications":
       return (
         <svg {...common}>
-          <rect x="4" y="4" width="6" height="6" rx="1" />
-          <rect x="14" y="4" width="6" height="6" rx="1" />
-          <rect x="4" y="14" width="6" height="6" rx="1" />
-          <rect x="14" y="14" width="6" height="6" rx="1" />
+          <rect x="4" y="4" width="16" height="16" rx="3" />
+          <path d="M8 9h8M8 13h8M8 17h5" />
         </svg>
       );
 
-    case "server":
+    case "environments":
       return (
         <svg {...common}>
-          <rect x="3" y="4" width="18" height="6" rx="1.5" />
-          <rect x="3" y="14" width="18" height="6" rx="1.5" />
-          <circle cx="7" cy="7" r="0.8" fill="currentColor" />
-          <circle cx="7" cy="17" r="0.8" fill="currentColor" />
-          <path d="M11 7h7M11 17h7" />
+          <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z" />
+          <path d="M4 7.5l8 4.5 8-4.5M12 12v9" />
         </svg>
       );
 
-    case "cluster":
+    case "clusters":
       return (
         <svg {...common}>
-          <circle cx="12" cy="5" r="2.5" />
-          <circle cx="5" cy="18" r="2.5" />
-          <circle cx="19" cy="18" r="2.5" />
-          <path d="M10.8 7.3 6.2 15.7M13.2 7.3l4.6 8.4M7.5 18h9" />
+          <rect x="3" y="4" width="7" height="6" rx="1" />
+          <rect x="14" y="4" width="7" height="6" rx="1" />
+          <rect x="8.5" y="14" width="7" height="6" rx="1" />
+          <path d="M6.5 10v2h11v-2M12 12v2" />
         </svg>
       );
 
-    case "rocket":
+    case "deployments":
       return (
         <svg {...common}>
-          <path d="M14.5 4.5c2.5-2.5 5-2.5 5-2.5s0 2.5-2.5 5l-6.5 6.5-4 1 1-4z" />
-          <path d="M14 10l-4-4" />
-          <path d="M7 14l-3 3" />
-          <path d="M10 17l-3 3" />
-          <circle cx="16.5" cy="6.5" r="1" />
-        </svg>
-      );
-
-    case "search":
-      return (
-        <svg {...common}>
-          <circle cx="10.8" cy="10.8" r="6.8" />
-          <path d="m16 16 5 5" />
-        </svg>
-      );
-
-    case "bell":
-      return (
-        <svg {...common}>
-          <path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
-          <path d="M10 21h4" />
-        </svg>
-      );
-
-    case "chevron":
-      return (
-        <svg {...common}>
-          <path d="m9 18 6-6-6-6" />
+          <path d="M12 3l2.2 5.2L20 10l-5.8 1.8L12 17l-2.2-5.2L4 10l5.8-1.8z" />
+          <path d="M19 16l.8 1.8L22 18.5l-2.2.7L19 21l-.8-1.8-2.2-.7 2.2-.7z" />
         </svg>
       );
 
@@ -172,18 +143,61 @@ function Icon({
         </svg>
       );
 
-    case "check":
+    case "logout":
       return (
         <svg {...common}>
-          <path d="m5 12 4 4L19 6" />
+          <path d="M10 17l5-5-5-5" />
+          <path d="M15 12H3" />
+          <path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4" />
         </svg>
       );
 
-    case "info":
+    case "plus":
       return (
         <svg {...common}>
-          <circle cx="12" cy="12" r="9" />
-          <path d="M12 10v6M12 7h.01" />
+          <path d="M12 5v14M5 12h14" />
+        </svg>
+      );
+
+    case "arrow":
+      return (
+        <svg {...common}>
+          <path d="M5 12h14" />
+          <path d="M13 6l6 6-6 6" />
+        </svg>
+      );
+
+    case "check":
+      return (
+        <svg {...common}>
+          <path d="M5 12l4 4L19 6" />
+        </svg>
+      );
+
+    case "server":
+      return (
+        <svg {...common}>
+          <rect x="3" y="4" width="18" height="6" rx="1.5" />
+          <rect x="3" y="14" width="18" height="6" rx="1.5" />
+          <path d="M7 7h.01M7 17h.01" />
+        </svg>
+      );
+
+    case "layers":
+      return (
+        <svg {...common}>
+          <path d="M12 3l9 5-9 5-9-5z" />
+          <path d="M3 12l9 5 9-5" />
+          <path d="M3 16l9 5 9-5" />
+        </svg>
+      );
+
+    case "box":
+      return (
+        <svg {...common}>
+          <path d="M21 8l-9-5-9 5 9 5z" />
+          <path d="M3 8v8l9 5 9-5V8" />
+          <path d="M12 13v8" />
         </svg>
       );
 
@@ -194,23 +208,46 @@ function Icon({
         </svg>
       );
 
-    case "database":
-      return (
-        <svg {...common}>
-          <ellipse cx="12" cy="5" rx="7" ry="3" />
-          <path d="M5 5v7c0 1.7 3.1 3 7 3s7-1.3 7-3V5" />
-          <path d="M5 12v7c0 1.7 3.1 3 7 3s7-1.3 7-3v-7" />
-        </svg>
-      );
-
     default:
       return null;
   }
 }
 
-export default function Home() {
+const navigation = [
+  { id: "dashboard", label: "Dashboard", icon: "dashboard" as IconName },
+  { id: "projects", label: "Projects", icon: "projects" as IconName },
+  {
+    id: "applications",
+    label: "Applications",
+    icon: "applications" as IconName,
+  },
+  {
+    id: "environments",
+    label: "Environments",
+    icon: "environments" as IconName,
+  },
+  { id: "clusters", label: "Clusters", icon: "clusters" as IconName },
+  {
+    id: "deployments",
+    label: "Deployments",
+    icon: "deployments" as IconName,
+  },
+];
+
+export default function CloudMind() {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const [loginError, setLoginError] = useState("");
+  const [error, setError] = useState("");
+
+  const [activePage, setActivePage] = useState("dashboard");
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
@@ -218,175 +255,173 @@ export default function Home() {
   const [clusters, setClusters] = useState<Cluster[]>([]);
   const [deployments, setDeployments] = useState<Deployment[]>([]);
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-
-  const [loading, setLoading] = useState(true);
-  const [loginLoading, setLoginLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  const [activePage, setActivePage] = useState("Dashboard");
-
   useEffect(() => {
     const savedToken = localStorage.getItem("cloudmind_token");
 
     if (savedToken) {
       setToken(savedToken);
-      loadData(savedToken);
-    } else {
-      setLoading(false);
     }
   }, []);
 
-  async function apiRequest(
-    path: string,
-    options: RequestInit = {},
-    authToken?: string
-  ) {
-    const headers = new Headers(options.headers);
-
-    headers.set("Content-Type", "application/json");
-
-    if (authToken) {
-      headers.set("Authorization", `Bearer ${authToken}`);
+  useEffect(() => {
+    if (token) {
+      loadUser();
+      loadData();
     }
+  }, [token]);
 
-    const response = await fetch(`${API_URL}${path}`, {
+  async function apiFetch(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<any> {
+    const response = await fetch(`${API_URL}${endpoint}`, {
       ...options,
-      headers,
+      headers: {
+        ...(options.headers || {}),
+        Authorization: `Bearer ${token}`,
+      },
     });
 
     if (!response.ok) {
-      let message = "Request failed";
-
-      try {
-        const body = await response.json();
-        message = body.detail || message;
-      } catch {}
-
-      throw new Error(message);
+      const text = await response.text();
+      throw new Error(text || `Request failed: ${response.status}`);
     }
 
     return response.json();
   }
 
-  async function login(e: React.FormEvent) {
-    e.preventDefault();
+  async function loadUser() {
+    try {
+      const data = await apiFetch("/auth/me");
+      setUser(data);
+    } catch {
+      logout();
+    }
+  }
 
-    setLoginLoading(true);
+  async function loadData() {
+    setLoading(true);
     setError("");
 
     try {
-      const form = new URLSearchParams();
+      const projectData = await apiFetch("/projects");
+      const clusterData = await apiFetch("/clusters");
 
-      form.append("username", email);
-      form.append("password", password);
+      const projectList = Array.isArray(projectData)
+        ? projectData
+        : projectData.items || [];
+
+      const clusterList = Array.isArray(clusterData)
+        ? clusterData
+        : clusterData.items || [];
+
+      setProjects(projectList);
+      setClusters(clusterList);
+
+      const allApplications: Application[] = [];
+      const allEnvironments: Environment[] = [];
+      const allDeployments: Deployment[] = [];
+
+      for (const project of projectList) {
+        try {
+          const applicationData = await apiFetch(
+            `/projects/${project.id}/applications`
+          );
+
+          const appList = Array.isArray(applicationData)
+            ? applicationData
+            : applicationData.items || [];
+
+          allApplications.push(...appList);
+
+          for (const application of appList) {
+            try {
+              const environmentData = await apiFetch(
+                `/applications/${application.id}/environments`
+              );
+
+              const environmentList = Array.isArray(environmentData)
+                ? environmentData
+                : environmentData.items || [];
+
+              allEnvironments.push(...environmentList);
+
+              for (const environment of environmentList) {
+                try {
+                  const deploymentData = await apiFetch(
+                    `/environments/${environment.id}/deployments`
+                  );
+
+                  const deploymentList = Array.isArray(deploymentData)
+                    ? deploymentData
+                    : deploymentData.items || [];
+
+                  allDeployments.push(...deploymentList);
+                } catch {
+                  // Ignore individual deployment errors.
+                }
+              }
+            } catch {
+              // Ignore individual environment errors.
+            }
+          }
+        } catch {
+          // Ignore individual application errors.
+        }
+      }
+
+      setApplications(allApplications);
+      setEnvironments(allEnvironments);
+      setDeployments(allDeployments);
+    } catch (err) {
+      setError("Unable to load CloudMind resources.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleLogin(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    setLoginLoading(true);
+    setLoginError("");
+
+    try {
+      const body = new URLSearchParams();
+
+      body.append("username", email);
+      body.append("password", password);
 
       const response = await fetch(`${API_URL}/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
         },
-        body: form.toString(),
+        body,
       });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.detail || "Incorrect email or password");
-      }
 
       const data = await response.json();
 
+      if (!response.ok) {
+        throw new Error(data.detail || "Incorrect email or password");
+      }
+
       localStorage.setItem("cloudmind_token", data.access_token);
-
       setToken(data.access_token);
-
-      await loadData(data.access_token);
+      setPassword("");
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Unable to sign in"
+      setLoginError(
+        err instanceof Error
+          ? err.message
+          : "Incorrect email or password"
       );
     } finally {
       setLoginLoading(false);
     }
   }
 
-  async function loadData(authToken: string) {
-    setLoading(true);
-    setError("");
-
-    try {
-      const me = await apiRequest("/auth/me", {}, authToken);
-
-      const projectData = await apiRequest(
-        "/projects",
-        {},
-        authToken
-      );
-
-      const clusterData = await apiRequest(
-        "/clusters",
-        {},
-        authToken
-      );
-
-      const allApplications: Application[] = [];
-      const allEnvironments: Environment[] = [];
-      const allDeployments: Deployment[] = [];
-
-      for (const project of projectData) {
-        try {
-          const apps = await apiRequest(
-            `/projects/${project.id}/applications`,
-            {},
-            authToken
-          );
-
-          allApplications.push(...apps);
-
-          for (const application of apps) {
-            try {
-              const envs = await apiRequest(
-                `/applications/${application.id}/environments`,
-                {},
-                authToken
-              );
-
-              allEnvironments.push(...envs);
-
-              for (const environment of envs) {
-                try {
-                  const deps = await apiRequest(
-                    `/environments/${environment.id}/deployments`,
-                    {},
-                    authToken
-                  );
-
-                  allDeployments.push(...deps);
-                } catch {}
-              }
-            } catch {}
-          }
-        } catch {}
-      }
-
-      setUser(me);
-      setProjects(projectData);
-      setClusters(clusterData);
-      setApplications(allApplications);
-      setEnvironments(allEnvironments);
-      setDeployments(allDeployments);
-    } catch (err) {
-      console.error(err);
-      setError("Unable to load CloudMind data.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
   function logout() {
     localStorage.removeItem("cloudmind_token");
-
     setToken(null);
     setUser(null);
     setProjects([]);
@@ -396,879 +431,713 @@ export default function Home() {
     setDeployments([]);
   }
 
-  const successfulDeployments = useMemo(
-    () =>
-      deployments.filter(
-        (d) => d.status?.toUpperCase() === "SUCCESS"
-      ).length,
-    [deployments]
-  );
+  function getPageTitle() {
+    const item = navigation.find((nav) => nav.id === activePage);
+    return item?.label || "Dashboard";
+  }
 
-  const runningDeployments = useMemo(
-    () =>
-      deployments.filter(
-        (d) => d.status?.toUpperCase() === "RUNNING"
-      ).length,
-    [deployments]
-  );
+  function getProjectName(projectId: string) {
+    return (
+      projects.find((project) => project.id === projectId)?.name ||
+      "Unknown project"
+    );
+  }
 
-  const failedDeployments = useMemo(
-    () =>
-      deployments.filter(
-        (d) => d.status?.toUpperCase() === "FAILED"
-      ).length,
-    [deployments]
-  );
+  function getApplicationName(applicationId: string) {
+    return (
+      applications.find((app) => app.id === applicationId)?.name ||
+      "Unknown application"
+    );
+  }
 
-  const pendingDeployments = useMemo(
-    () =>
-      deployments.filter(
-        (d) => d.status?.toUpperCase() === "PENDING"
-      ).length,
-    [deployments]
-  );
+  function getEnvironmentName(environmentId: string) {
+    return (
+      environments.find((env) => env.id === environmentId)?.name ||
+      "Unknown environment"
+    );
+  }
 
-  const successPercentage =
-    deployments.length > 0
-      ? Math.round(
-          (successfulDeployments / deployments.length) * 100
-        )
-      : 0;
-
-  function navigate(page: string) {
-    setActivePage(page);
+  function statusClass(status: string) {
+    return `status-pill status-${status.toLowerCase()}`;
   }
 
   if (!token) {
     return (
       <main className="login-page">
-        <div className="login-background-orb orb-one" />
-        <div className="login-background-orb orb-two" />
+        <div className="login-background-shape shape-one" />
+        <div className="login-background-shape shape-two" />
 
-        <div className="login-card">
-          <div className="brand-large">
-            <div className="brand-cloud">
-              <span>☁</span>
+        <section className="login-card">
+          <div className="login-brand">
+            <div className="brand-icon">
+              <svg
+                width="34"
+                height="34"
+                viewBox="0 0 34 34"
+                fill="none"
+              >
+                <path
+                  d="M9.5 24.5h15.2c3.2 0 5.8-2.5 5.8-5.6 0-2.9-2.2-5.2-5-5.6C24.6 8.9 21.2 6 17.1 6c-4.2 0-7.8 3.1-8.5 7.1C5.7 13.5 4 16 4 19c0 3.1 2.4 5.5 5.5 5.5Z"
+                  fill="white"
+                />
+              </svg>
             </div>
 
             <div>
-              <h1>
+              <div className="brand-name">
                 Cloud<span>Mind</span>
-              </h1>
-
-              <p>Cloud Management System</p>
+              </div>
+              <div className="brand-tagline">
+                Cloud Management System
+              </div>
             </div>
           </div>
 
           <div className="login-heading">
-            <h2>Welcome back</h2>
-            <p>
-              Sign in to manage your cloud infrastructure.
-            </p>
+            <h1>Welcome back</h1>
+            <p>Sign in to manage your cloud infrastructure.</p>
           </div>
 
-          <form onSubmit={login}>
+          <form onSubmit={handleLogin}>
             <div className="form-group">
               <label>Email address</label>
 
               <input
                 type="email"
-                placeholder="you@example.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="you@example.com"
                 required
+                autoComplete="email"
               />
             </div>
 
             <div className="form-group">
-              <label>Password</label>
+              <div className="password-label-row">
+                <label>Password</label>
+              </div>
 
               <input
                 type="password"
-                placeholder="Enter your password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="Enter your password"
                 required
+                autoComplete="current-password"
               />
             </div>
 
-            {error && (
-              <div className="error-message">
-                {error}
+            {loginError && (
+              <div className="login-error">
+                <span className="error-dot" />
+                <span>{loginError}</span>
               </div>
             )}
 
             <button
-              className="login-button"
               type="submit"
+              className="login-button"
               disabled={loginLoading}
             >
-              {loginLoading ? "Signing in..." : "Sign in"}
+              {loginLoading ? (
+                <>
+                  <span className="spinner" />
+                  Signing in...
+                </>
+              ) : (
+                <>
+                  Sign in
+                  <Icon name="arrow" size={18} />
+                </>
+              )}
             </button>
           </form>
 
           <div className="login-footer">
-            <span className="status-dot" />
-            CloudMind backend connected
+            <span className="online-dot" />
+            <span>CloudMind backend connected</span>
           </div>
-        </div>
+        </section>
       </main>
     );
   }
 
   return (
     <div className="app-shell">
-
       <aside className="sidebar">
-
         <div className="sidebar-brand">
-          <div className="sidebar-logo">
-            ☁
+          <div className="sidebar-brand-icon">
+            <svg
+              width="25"
+              height="25"
+              viewBox="0 0 34 34"
+              fill="none"
+            >
+              <path
+                d="M9.5 24.5h15.2c3.2 0 5.8-2.5 5.8-5.6 0-2.9-2.2-5.2-5-5.6C24.6 8.9 21.2 6 17.1 6c-4.2 0-7.8 3.1-8.5 7.1C5.7 13.5 4 16 4 19c0 3.1 2.4 5.5 5.5 5.5Z"
+                fill="white"
+              />
+            </svg>
           </div>
 
           <div>
-            <div className="sidebar-title">
+            <div className="sidebar-brand-name">
               Cloud<span>Mind</span>
             </div>
-
-            <div className="sidebar-subtitle">
-              Cloud Management System
-            </div>
+            <div className="sidebar-version">CONTROL PLANE</div>
           </div>
         </div>
 
-        <nav className="sidebar-nav">
+        <div className="nav-section-title">Workspace</div>
 
-          <div className="nav-section-title">
-            MAIN
-          </div>
-
-          {[
-            ["Dashboard", "dashboard"],
-            ["Projects", "folder"],
-            ["Applications", "apps"],
-            ["Environments", "server"],
-            ["Clusters", "cluster"],
-            ["Deployments", "rocket"],
-          ].map(([name, icon]) => (
+        <nav className="navigation">
+          {navigation.map((item) => (
             <button
-              key={name}
+              key={item.id}
               className={`nav-item ${
-                activePage === name ? "active" : ""
+                activePage === item.id ? "active" : ""
               }`}
-              onClick={() => navigate(name)}
+              onClick={() => setActivePage(item.id)}
             >
-              <Icon name={icon as IconName} />
-              <span>{name}</span>
+              <Icon name={item.icon} size={19} />
+              <span>{item.label}</span>
+
+              {item.id === "deployments" && deployments.length > 0 && (
+                <span className="nav-count">{deployments.length}</span>
+              )}
             </button>
           ))}
         </nav>
 
         <div className="sidebar-bottom">
-
-          <div className="backend-card">
-            <div className="backend-icon">
-              <span />
-            </div>
-
+          <div className="sidebar-status">
+            <span className="online-dot" />
             <div>
-              <strong>Backend Connected</strong>
-              <small>CloudMind API</small>
+              <strong>System online</strong>
+              <span>All services operational</span>
             </div>
-
-            <Icon name="chevron" size={17} />
           </div>
 
-          <div className="sidebar-user">
-            <div className="avatar">
-              {(user?.full_name || "U")
-                .charAt(0)
-                .toUpperCase()}
-            </div>
-
-            <div>
-              <strong>
-                {user?.full_name || "User"}
-              </strong>
-
-              <small>
-                {user?.role || "Developer"}
-              </small>
-            </div>
-          </div>
+          <button className="logout-button" onClick={logout}>
+            <Icon name="logout" size={18} />
+            Sign out
+          </button>
         </div>
       </aside>
 
       <main className="main-content">
-
         <header className="topbar">
-
-          <div className="search-box">
-            <Icon name="search" size={19} />
-
-            <input
-              placeholder="Search projects, applications, environments..."
-            />
+          <div>
+            <div className="breadcrumb">
+              CloudMind <span>/</span> {getPageTitle()}
+            </div>
+            <h1>{getPageTitle()}</h1>
           </div>
 
-          <div className="topbar-right">
+          <div className="topbar-actions">
+            <div className="backend-status">
+              <span className="online-dot" />
+              Backend connected
+            </div>
 
-            <button className="icon-button">
-              <Icon name="bell" size={20} />
-              <span className="notification-dot" />
+            <button
+              className="icon-button"
+              onClick={loadData}
+              disabled={loading}
+              title="Refresh"
+            >
+              <Icon name="refresh" size={19} />
             </button>
 
-            <div className="top-divider" />
-
-            <div className="profile-area">
-
-              <div className="profile-avatar">
-                {(user?.full_name || "U")
+            <div className="user-menu">
+              <div className="avatar">
+                {(user?.full_name || user?.email || "U")
                   .charAt(0)
                   .toUpperCase()}
               </div>
 
-              <div className="profile-text">
-                <strong>
-                  {user?.full_name || "User"}
-                </strong>
-
-                <span>
-                  {user?.role || "Developer"}
-                </span>
+              <div className="user-details">
+                <strong>{user?.full_name || "CloudMind User"}</strong>
+                <span>{user?.role || "User"}</span>
               </div>
-
-              <span className="profile-chevron">
-                ⌄
-              </span>
             </div>
-
-            <button
-              className="logout-top"
-              onClick={logout}
-            >
-              Logout
-            </button>
-
           </div>
         </header>
 
-        <div className="page-content">
+        <div className="content-area">
+          {error && <div className="error-banner">{error}</div>}
 
-          <div className="page-header">
-
-            <div>
-              <div className="breadcrumb">
-                CloudMind <span>/</span> {activePage}
-              </div>
-
-              <h1>
-                {activePage === "Dashboard"
-                  ? `Welcome back, ${
-                      user?.full_name?.split(" ")[0] ||
-                      "User"
-                    } 👋`
-                  : activePage}
-              </h1>
-
-              <p>
-                {activePage === "Dashboard"
-                  ? "Manage your cloud infrastructure from one place."
-                  : `Manage your CloudMind ${activePage.toLowerCase()} from one place.`}
-              </p>
-            </div>
-
-            <div className="header-actions">
-
-              <div className="system-online">
-
-                <span className="status-dot" />
-
+          {activePage === "dashboard" && (
+            <>
+              <section className="hero-card">
                 <div>
-                  <strong>System Online</strong>
-                  <small>All systems operational</small>
+                  <div className="hero-eyebrow">
+                    <span className="online-dot" />
+                    CLOUD INFRASTRUCTURE CONTROL
+                  </div>
+
+                  <h2>Welcome to CloudMind</h2>
+
+                  <p>
+                    Manage projects, applications, environments,
+                    clusters and deployments from one unified control
+                    plane.
+                  </p>
+
+                  <button
+                    className="hero-button"
+                    onClick={() => setActivePage("projects")}
+                  >
+                    Explore projects
+                    <Icon name="arrow" size={17} />
+                  </button>
                 </div>
 
+                <div className="hero-visual">
+                  <div className="hero-circle circle-one" />
+                  <div className="hero-circle circle-two" />
+
+                  <div className="hero-server">
+                    <Icon name="server" size={52} />
+                  </div>
+                </div>
+              </section>
+
+              <div className="section-header">
+                <div>
+                  <h2>Infrastructure overview</h2>
+                  <p>
+                    Real-time resources loaded from your CloudMind
+                    backend.
+                  </p>
+                </div>
+
+                <button
+                  className="refresh-button"
+                  onClick={loadData}
+                  disabled={loading}
+                >
+                  <Icon name="refresh" size={17} />
+                  {loading ? "Refreshing..." : "Refresh data"}
+                </button>
               </div>
 
-              <button
-                className="refresh-button"
-                onClick={() =>
-                  token && loadData(token)
-                }
-              >
-                <Icon name="refresh" size={17} />
-                Refresh
-              </button>
-
-            </div>
-          </div>
-
-          {error && (
-            <div className="error-banner">
-              {error}
-            </div>
-          )}
-
-          {activePage === "Dashboard" && (
-            <>
               <section className="stats-grid">
-
                 <StatCard
-                  title="Projects"
+                  icon="projects"
+                  label="Projects"
                   value={projects.length}
                   description="Active projects"
-                  icon="folder"
-                  variant="blue"
+                  onClick={() => setActivePage("projects")}
                 />
 
                 <StatCard
-                  title="Applications"
+                  icon="applications"
+                  label="Applications"
                   value={applications.length}
                   description="Registered applications"
-                  icon="apps"
-                  variant="purple"
+                  onClick={() => setActivePage("applications")}
                 />
 
                 <StatCard
-                  title="Environments"
+                  icon="environments"
+                  label="Environments"
                   value={environments.length}
-                  description="Configured environments"
-                  icon="server"
-                  variant="green"
+                  description="Application environments"
+                  onClick={() => setActivePage("environments")}
                 />
 
                 <StatCard
-                  title="Clusters"
-                  value={clusters.length}
-                  description="Connected clusters"
-                  icon="cluster"
-                  variant="orange"
+                  icon="deployments"
+                  label="Deployments"
+                  value={deployments.length}
+                  description="Tracked deployments"
+                  onClick={() => setActivePage("deployments")}
                 />
-
               </section>
 
               <section className="dashboard-grid">
-
-                <div className="dashboard-card deployment-chart-card">
-
-                  <div className="card-header">
-
+                <div className="panel">
+                  <div className="panel-header">
                     <div>
-                      <h2>
-                        <Icon
-                          name="activity"
-                          size={19}
-                        />
-                        Deployment Overview
-                      </h2>
-
-                      <p>
-                        Deployment activity across your infrastructure
-                      </p>
-                    </div>
-
-                    <button className="period-button">
-                      Last 7 days
-                      <span>⌄</span>
-                    </button>
-
-                  </div>
-
-                  <div className="chart-legend">
-
-                    <span>
-                      <i className="legend success" />
-                      Success
-                    </span>
-
-                    <span>
-                      <i className="legend running" />
-                      Running
-                    </span>
-
-                    <span>
-                      <i className="legend failed" />
-                      Failed
-                    </span>
-
-                    <span>
-                      <i className="legend pending" />
-                      Pending
-                    </span>
-
-                  </div>
-
-                  <div className="fake-chart">
-
-                    <div className="chart-y">
-                      <span>4</span>
-                      <span>3</span>
-                      <span>2</span>
-                      <span>1</span>
-                      <span>0</span>
-                    </div>
-
-                    <div className="chart-area">
-
-                      <div className="chart-grid-line" />
-                      <div className="chart-grid-line" />
-                      <div className="chart-grid-line" />
-                      <div className="chart-grid-line" />
-                      <div className="chart-grid-line" />
-
-                      <svg
-                        className="chart-svg"
-                        viewBox="0 0 700 190"
-                        preserveAspectRatio="none"
-                      >
-                        <polyline
-                          points="0,170 115,150 230,155 350,145 465,125 580,105 700,75"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="3"
-                        />
-
-                        <polyline
-                          points="0,175 115,174 230,174 350,170 465,172 580,165 700,160"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          opacity=".3"
-                        />
-                      </svg>
-
-                      <div className="chart-points">
-                        {[0, 1, 2, 3, 4, 5, 6].map(
-                          (item) => (
-                            <span key={item} />
-                          )
-                        )}
-                      </div>
-
-                      <div className="chart-x">
-                        <span>Mon</span>
-                        <span>Tue</span>
-                        <span>Wed</span>
-                        <span>Thu</span>
-                        <span>Fri</span>
-                        <span>Sat</span>
-                        <span>Sun</span>
-                      </div>
-
-                    </div>
-                  </div>
-                </div>
-
-                <div className="dashboard-card status-card">
-
-                  <div className="card-header">
-                    <div>
-                      <h2>Deployment Status</h2>
-                      <p>
-                        Current deployment health
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="status-content">
-
-                    <div
-                      className="donut"
-                      style={{
-                        background: `conic-gradient(
-                          #16b981 ${successPercentage}%,
-                          #e8eef7 ${successPercentage}% 100%
-                        )`,
-                      }}
-                    >
-                      <div className="donut-inner">
-                        <strong>
-                          {successPercentage}%
-                        </strong>
-
-                        <span>Success</span>
-                      </div>
-                    </div>
-
-                    <div className="status-list">
-
-                      <StatusRow
-                        label="Success"
-                        value={successfulDeployments}
-                        type="success"
-                      />
-
-                      <StatusRow
-                        label="Running"
-                        value={runningDeployments}
-                        type="running"
-                      />
-
-                      <StatusRow
-                        label="Pending"
-                        value={pendingDeployments}
-                        type="pending"
-                      />
-
-                      <StatusRow
-                        label="Failed"
-                        value={failedDeployments}
-                        type="failed"
-                      />
-
-                    </div>
-                  </div>
-                </div>
-
-              </section>
-
-              <section className="lower-grid">
-
-                <div className="dashboard-card recent-card">
-
-                  <div className="card-header">
-
-                    <div>
-                      <h2>
-                        <Icon
-                          name="rocket"
-                          size={19}
-                        />
-                        Recent Deployments
-                      </h2>
-
-                      <p>
-                        Latest deployment activity
-                      </p>
+                      <h3>Recent deployments</h3>
+                      <p>Latest deployment activity</p>
                     </div>
 
                     <button
-                      className="view-all"
-                      onClick={() =>
-                        navigate("Deployments")
-                      }
+                      className="text-button"
+                      onClick={() => setActivePage("deployments")}
                     >
-                      View all →
+                      View all
+                      <Icon name="arrow" size={15} />
                     </button>
-
                   </div>
 
-                  {loading ? (
-                    <div className="loading-state">
-                      Loading deployments...
-                    </div>
-                  ) : deployments.length === 0 ? (
-                    <div className="empty-state">
-                      <Icon name="rocket" size={30} />
-
-                      <strong>
-                        No deployments yet
-                      </strong>
-
-                      <span>
-                        Your deployment activity will appear here.
-                      </span>
-                    </div>
-                  ) : (
-                    <DeploymentTable
-                      deployments={deployments.slice(0, 5)}
-                      applications={applications}
-                      environments={environments}
+                  {deployments.length === 0 ? (
+                    <EmptyState
+                      icon="deployments"
+                      title="No deployments yet"
+                      description="Deployment records will appear here."
                     />
-                  )}
+                  ) : (
+                    <div className="deployment-list">
+                      {deployments.slice(0, 5).map((deployment) => (
+                        <div
+                          className="deployment-row"
+                          key={deployment.id}
+                        >
+                          <div className="deployment-icon">
+                            <Icon name="deployments" size={18} />
+                          </div>
 
-                </div>
+                          <div className="deployment-info">
+                            <strong>{deployment.version}</strong>
+                            <span>
+                              {getEnvironmentName(
+                                deployment.environment_id
+                              )}
+                            </span>
+                          </div>
 
-                <div className="dashboard-card quick-actions">
-
-                  <div className="card-header">
-
-                    <div>
-                      <h2>Quick Actions</h2>
-
-                      <p>
-                        Common CloudMind actions
-                      </p>
+                          <span className={statusClass(deployment.status)}>
+                            {deployment.status}
+                          </span>
+                        </div>
+                      ))}
                     </div>
+                  )}
+                </div>
 
+                <div className="panel">
+                  <div className="panel-header">
+                    <div>
+                      <h3>Infrastructure</h3>
+                      <p>Connected resources</p>
+                    </div>
                   </div>
 
-                  <QuickAction
-                    icon="folder"
-                    title="Create Project"
-                    description="Start a new project"
-                    onClick={() =>
-                      navigate("Projects")
-                    }
-                  />
+                  <div className="infrastructure-list">
+                    <InfrastructureItem
+                      icon="projects"
+                      label="Projects"
+                      value={projects.length}
+                    />
 
-                  <QuickAction
-                    icon="rocket"
-                    title="Deploy Application"
-                    description="Deploy to your environment"
-                    onClick={() =>
-                      navigate("Deployments")
-                    }
-                  />
+                    <InfrastructureItem
+                      icon="applications"
+                      label="Applications"
+                      value={applications.length}
+                    />
 
-                  <QuickAction
-                    icon="cluster"
-                    title="Manage Clusters"
-                    description="View your clusters"
-                    onClick={() =>
-                      navigate("Clusters")
-                    }
-                  />
+                    <InfrastructureItem
+                      icon="clusters"
+                      label="Clusters"
+                      value={clusters.length}
+                    />
 
-                  <QuickAction
-                    icon="activity"
-                    title="View Deployments"
-                    description="Check deployment activity"
-                    onClick={() =>
-                      navigate("Deployments")
-                    }
-                  />
-
-                </div>
-
-              </section>
-
-              <section className="dashboard-card system-info">
-
-                <div className="card-header">
-
-                  <div>
-                    <h2>
-                      <Icon
-                        name="info"
-                        size={19}
-                      />
-                      System Information
-                    </h2>
-
-                    <p>
-                      CloudMind platform health
-                    </p>
+                    <InfrastructureItem
+                      icon="activity"
+                      label="Deployments"
+                      value={deployments.length}
+                    />
                   </div>
-
                 </div>
-
-                <div className="system-info-grid">
-
-                  <InfoItem
-                    label="Backend API"
-                    value="Online"
-                    status
-                  />
-
-                  <InfoItem
-                    label="Database"
-                    value="Connected"
-                    status
-                  />
-
-                  <InfoItem
-                    label="Projects"
-                    value={String(projects.length)}
-                  />
-
-                  <InfoItem
-                    label="Applications"
-                    value={String(applications.length)}
-                  />
-
-                  <InfoItem
-                    label="Environments"
-                    value={String(environments.length)}
-                  />
-
-                  <InfoItem
-                    label="CloudMind Version"
-                    value="0.1.0"
-                  />
-
-                </div>
-
               </section>
             </>
           )}
 
-          {activePage === "Projects" && (
+          {activePage === "projects" && (
             <ResourcePage
               title="Projects"
-              description="Manage all projects registered in CloudMind."
+              description="Organize your applications and cloud resources into projects."
+              icon="projects"
               count={projects.length}
-              icon="folder"
             >
-              {projects.map((project) => (
-                <div
-                  className="resource-card"
-                  key={project.id}
-                >
-                  <div className="resource-icon blue">
-                    <Icon name="folder" />
-                  </div>
+              {projects.length === 0 ? (
+                <EmptyState
+                  icon="projects"
+                  title="No projects found"
+                  description="Create a project through the CloudMind API to see it here."
+                />
+              ) : (
+                <div className="resource-grid">
+                  {projects.map((project) => (
+                    <div className="resource-card" key={project.id}>
+                      <div className="resource-card-top">
+                        <div className="resource-icon">
+                          <Icon name="projects" size={21} />
+                        </div>
 
-                  <div className="resource-main">
-                    <strong>{project.name}</strong>
+                        <span className="resource-active">
+                          <span className="online-dot" />
+                          Active
+                        </span>
+                      </div>
 
-                    <span>
-                      {project.description ||
-                        "CloudMind project"}
-                    </span>
-                  </div>
+                      <h3>{project.name}</h3>
 
-                  <code>
-                    {project.id.slice(0, 12)}...
-                  </code>
+                      <p>
+                        {project.description ||
+                          "CloudMind infrastructure project"}
+                      </p>
+
+                      <div className="resource-footer">
+                        <span>Project ID</span>
+                        <code>{project.id.slice(0, 12)}...</code>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </ResourcePage>
           )}
 
-          {activePage === "Applications" && (
+          {activePage === "applications" && (
             <ResourcePage
               title="Applications"
-              description="Applications registered under your CloudMind projects."
+              description="Manage applications connected to your CloudMind projects."
+              icon="applications"
               count={applications.length}
-              icon="apps"
             >
-              {applications.map((app) => (
-                <div
-                  className="resource-card"
-                  key={app.id}
-                >
-                  <div className="resource-icon purple">
-                    <Icon name="apps" />
-                  </div>
+              {applications.length === 0 ? (
+                <EmptyState
+                  icon="applications"
+                  title="No applications found"
+                  description="Applications registered with CloudMind will appear here."
+                />
+              ) : (
+                <div className="table-container">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Application</th>
+                        <th>Project</th>
+                        <th>Repository</th>
+                        <th>Application ID</th>
+                      </tr>
+                    </thead>
 
-                  <div className="resource-main">
-                    <strong>{app.name}</strong>
+                    <tbody>
+                      {applications.map((application) => (
+                        <tr key={application.id}>
+                          <td>
+                            <div className="table-name">
+                              <div className="mini-icon">
+                                <Icon name="applications" size={17} />
+                              </div>
 
-                    <span>
-                      {app.repository_url ||
-                        "Repository not specified"}
-                    </span>
-                  </div>
+                              <strong>{application.name}</strong>
+                            </div>
+                          </td>
 
-                  <code>
-                    {app.id.slice(0, 12)}...
-                  </code>
+                          <td>
+                            {getProjectName(application.project_id)}
+                          </td>
+
+                          <td>
+                            {application.repo_url ? (
+                              <span className="repository">
+                                {application.repo_url.replace(
+                                  "https://github.com/",
+                                  ""
+                                )}
+                              </span>
+                            ) : (
+                              "—"
+                            )}
+                          </td>
+
+                          <td>
+                            <code>
+                              {application.id.slice(0, 12)}...
+                            </code>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              ))}
+              )}
             </ResourcePage>
           )}
 
-          {activePage === "Environments" && (
+          {activePage === "environments" && (
             <ResourcePage
               title="Environments"
-              description="Application environments configured across your clusters."
+              description="Application environments connected to your clusters."
+              icon="environments"
               count={environments.length}
-              icon="server"
             >
-              {environments.map((env) => (
-                <div
-                  className="resource-card"
-                  key={env.id}
-                >
-                  <div className="resource-icon green">
-                    <Icon name="server" />
-                  </div>
+              {environments.length === 0 ? (
+                <EmptyState
+                  icon="environments"
+                  title="No environments found"
+                  description="Create an environment through the API to see it here."
+                />
+              ) : (
+                <div className="resource-grid">
+                  {environments.map((environment) => (
+                    <div
+                      className="resource-card"
+                      key={environment.id}
+                    >
+                      <div className="resource-card-top">
+                        <div className="resource-icon">
+                          <Icon name="environments" size={21} />
+                        </div>
 
-                  <div className="resource-main">
-                    <strong>{env.name}</strong>
+                        <span className="environment-badge">
+                          Environment
+                        </span>
+                      </div>
 
-                    <span>
-                      Application:{" "}
-                      {env.application_id.slice(0, 12)}...
-                    </span>
-                  </div>
+                      <h3>{environment.name}</h3>
 
-                  <span className="environment-badge">
-                    Active
-                  </span>
+                      <p>
+                        Application:{" "}
+                        {getApplicationName(
+                          environment.application_id
+                        )}
+                      </p>
+
+                      <div className="resource-footer">
+                        <span>Environment ID</span>
+                        <code>{environment.id.slice(0, 12)}...</code>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </ResourcePage>
           )}
 
-          {activePage === "Clusters" && (
+          {activePage === "clusters" && (
             <ResourcePage
               title="Clusters"
-              description="Infrastructure clusters connected to CloudMind."
+              description="View the compute clusters available to CloudMind."
+              icon="clusters"
               count={clusters.length}
-              icon="cluster"
             >
-              {clusters.map((cluster) => (
-                <div
-                  className="resource-card"
-                  key={cluster.id}
-                >
-                  <div className="resource-icon orange">
-                    <Icon name="cluster" />
-                  </div>
+              {clusters.length === 0 ? (
+                <EmptyState
+                  icon="clusters"
+                  title="No clusters found"
+                  description="Register a cluster through the CloudMind API."
+                />
+              ) : (
+                <div className="resource-grid">
+                  {clusters.map((cluster) => (
+                    <div className="resource-card" key={cluster.id}>
+                      <div className="resource-card-top">
+                        <div className="resource-icon">
+                          <Icon name="server" size={21} />
+                        </div>
 
-                  <div className="resource-main">
-                    <strong>{cluster.name}</strong>
+                        <span className="resource-active">
+                          <span className="online-dot" />
+                          Connected
+                        </span>
+                      </div>
 
-                    <span>
-                      {cluster.provider ||
-                        "Unknown provider"}{" "}
-                      ·{" "}
-                      {cluster.region ||
-                        "Unknown region"}
-                    </span>
-                  </div>
+                      <h3>{cluster.name}</h3>
 
-                  <span className="online-badge">
-                    <i />
-                    Online
-                  </span>
+                      <p>
+                        {cluster.provider || "Cloud infrastructure"}{" "}
+                        {cluster.region
+                          ? `• ${cluster.region}`
+                          : ""}
+                      </p>
+
+                      <div className="cluster-meta">
+                        <div>
+                          <span>Provider</span>
+                          <strong>
+                            {cluster.provider || "—"}
+                          </strong>
+                        </div>
+
+                        <div>
+                          <span>Region</span>
+                          <strong>{cluster.region || "—"}</strong>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </ResourcePage>
           )}
 
-          {activePage === "Deployments" && (
+          {activePage === "deployments" && (
             <ResourcePage
               title="Deployments"
-              description="Monitor deployments across all environments."
+              description="Track application deployment versions and their current status."
+              icon="deployments"
               count={deployments.length}
-              icon="rocket"
             >
-              {deployments.map((deployment) => (
-                <div
-                  className="resource-card"
-                  key={deployment.id}
-                >
-                  <div className="resource-icon blue">
-                    <Icon name="rocket" />
-                  </div>
+              {deployments.length === 0 ? (
+                <EmptyState
+                  icon="deployments"
+                  title="No deployments found"
+                  description="Create a deployment through the CloudMind API."
+                />
+              ) : (
+                <div className="table-container">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Version</th>
+                        <th>Environment</th>
+                        <th>Status</th>
+                        <th>Deployment ID</th>
+                      </tr>
+                    </thead>
 
-                  <div className="resource-main">
-                    <strong>
-                      {deployment.version}
-                    </strong>
+                    <tbody>
+                      {deployments.map((deployment) => (
+                        <tr key={deployment.id}>
+                          <td>
+                            <div className="table-name">
+                              <div className="mini-icon">
+                                <Icon name="deployments" size={17} />
+                              </div>
 
-                    <span>
-                      Environment:{" "}
-                      {deployment.environment_id.slice(
-                        0,
-                        12
-                      )}
-                      ...
-                    </span>
-                  </div>
+                              <strong>{deployment.version}</strong>
+                            </div>
+                          </td>
 
-                  <StatusBadge
-                    status={deployment.status}
-                  />
+                          <td>
+                            {getEnvironmentName(
+                              deployment.environment_id
+                            )}
+                          </td>
+
+                          <td>
+                            <span
+                              className={statusClass(
+                                deployment.status
+                              )}
+                            >
+                              {deployment.status === "SUCCESS" && (
+                                <Icon name="check" size={14} />
+                              )}
+                              {deployment.status}
+                            </span>
+                          </td>
+
+                          <td>
+                            <code>
+                              {deployment.id.slice(0, 12)}...
+                            </code>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              ))}
+              )}
             </ResourcePage>
           )}
-
         </div>
       </main>
     </div>
@@ -1276,322 +1145,109 @@ export default function Home() {
 }
 
 function StatCard({
-  title,
-  value,
-  description,
   icon,
-  variant,
-}: {
-  title: string;
-  value: number;
-  description: string;
-  icon: IconName;
-  variant: string;
-}) {
-  return (
-    <div className={`stat-card ${variant}`}>
-
-      <div className="stat-top">
-
-        <div className={`stat-icon ${variant}`}>
-          <Icon name={icon} size={21} />
-        </div>
-
-        <span className="stat-title">
-          {title}
-        </span>
-
-      </div>
-
-      <div className="stat-value">
-        {value}
-      </div>
-
-      <div className="stat-description">
-        <span>↗</span>
-        {description}
-      </div>
-
-      <div className="stat-decoration" />
-    </div>
-  );
-}
-
-function StatusRow({
   label,
   value,
-  type,
-}: {
-  label: string;
-  value: number;
-  type: string;
-}) {
-  return (
-    <div className="status-row">
-
-      <div>
-        <i
-          className={`status-indicator ${type}`}
-        />
-
-        <span>{label}</span>
-      </div>
-
-      <strong>{value}</strong>
-
-    </div>
-  );
-}
-
-function QuickAction({
-  icon,
-  title,
   description,
   onClick,
 }: {
   icon: IconName;
-  title: string;
+  label: string;
+  value: number;
   description: string;
   onClick: () => void;
 }) {
   return (
-    <button
-      className="quick-action"
-      onClick={onClick}
-    >
+    <button className="stat-card" onClick={onClick}>
+      <div className="stat-card-top">
+        <div className="stat-icon">
+          <Icon name={icon} size={21} />
+        </div>
 
-      <div className="quick-action-icon">
-        <Icon name={icon} size={19} />
+        <Icon name="arrow" size={17} />
       </div>
 
-      <div>
-        <strong>{title}</strong>
-        <span>{description}</span>
-      </div>
-
-      <Icon name="chevron" size={18} />
-
+      <div className="stat-value">{value}</div>
+      <div className="stat-label">{label}</div>
+      <div className="stat-description">{description}</div>
     </button>
-  );
-}
-
-function InfoItem({
-  label,
-  value,
-  status,
-}: {
-  label: string;
-  value: string;
-  status?: boolean;
-}) {
-  return (
-    <div className="info-item">
-
-      <span>{label}</span>
-
-      <strong>
-        {status && (
-          <i className="info-status" />
-        )}
-
-        {value}
-      </strong>
-
-    </div>
-  );
-}
-
-function DeploymentTable({
-  deployments,
-  applications,
-  environments,
-}: {
-  deployments: Deployment[];
-  applications: Application[];
-  environments: Environment[];
-}) {
-  return (
-    <div className="deployment-table-wrapper">
-
-      <table className="deployment-table">
-
-        <thead>
-          <tr>
-            <th>Application</th>
-            <th>Environment</th>
-            <th>Version</th>
-            <th>Status</th>
-            <th>Deployment ID</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {deployments.map((deployment) => {
-
-            const environment =
-              environments.find(
-                (e) =>
-                  e.id ===
-                  deployment.environment_id
-              );
-
-            const application =
-              applications.find(
-                (a) =>
-                  a.id ===
-                  environment?.application_id
-              );
-
-            return (
-              <tr key={deployment.id}>
-
-                <td>
-                  <div className="table-app">
-
-                    <div className="table-app-icon">
-                      <Icon
-                        name="apps"
-                        size={17}
-                      />
-                    </div>
-
-                    <div>
-                      <strong>
-                        {application?.name ||
-                          "Application"}
-                      </strong>
-
-                      <span>
-                        CloudMind
-                      </span>
-                    </div>
-
-                  </div>
-                </td>
-
-                <td>
-                  <span className="environment-pill">
-                    {environment?.name ||
-                      "development"}
-                  </span>
-                </td>
-
-                <td>
-                  <strong>
-                    {deployment.version}
-                  </strong>
-                </td>
-
-                <td>
-                  <StatusBadge
-                    status={deployment.status}
-                  />
-                </td>
-
-                <td>
-                  <code>
-                    {deployment.id.slice(0, 10)}...
-                  </code>
-                </td>
-
-              </tr>
-            );
-          })}
-        </tbody>
-
-      </table>
-    </div>
-  );
-}
-
-function StatusBadge({
-  status,
-}: {
-  status: string;
-}) {
-  const normalized = status?.toUpperCase();
-
-  let className = "success";
-
-  if (normalized === "FAILED") {
-    className = "failed";
-  } else if (normalized === "RUNNING") {
-    className = "running";
-  } else if (normalized === "PENDING") {
-    className = "pending";
-  }
-
-  return (
-    <span
-      className={`status-badge ${className}`}
-    >
-      <i />
-      {status}
-    </span>
   );
 }
 
 function ResourcePage({
   title,
   description,
-  count,
   icon,
+  count,
   children,
 }: {
   title: string;
   description: string;
-  count: number;
   icon: IconName;
+  count: number;
   children: React.ReactNode;
 }) {
   return (
-    <section className="resource-page">
-
-      <div className="resource-page-header">
+    <>
+      <div className="page-intro">
+        <div className="page-intro-icon">
+          <Icon name={icon} size={25} />
+        </div>
 
         <div>
-
-          <h2>
-            <span className="resource-page-icon">
-              <Icon name={icon} size={22} />
-            </span>
-
-            {title}
-          </h2>
+          <div className="page-title-row">
+            <h2>{title}</h2>
+            <span className="count-badge">{count}</span>
+          </div>
 
           <p>{description}</p>
-
         </div>
-
-        <div className="resource-count">
-          {count}
-          <span>resources</span>
-        </div>
-
       </div>
 
-      <div className="resource-list">
+      {children}
+    </>
+  );
+}
 
-        {count === 0 ? (
-          <div className="empty-resource">
-
-            <Icon name={icon} size={35} />
-
-            <h3>
-              No {title.toLowerCase()} found
-            </h3>
-
-            <p>
-              There are currently no{" "}
-              {title.toLowerCase()} registered.
-            </p>
-
-          </div>
-        ) : (
-          children
-        )}
-
+function EmptyState({
+  icon,
+  title,
+  description,
+}: {
+  icon: IconName;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="empty-state">
+      <div className="empty-icon">
+        <Icon name={icon} size={27} />
       </div>
-    </section>
+
+      <h3>{title}</h3>
+      <p>{description}</p>
+    </div>
+  );
+}
+
+function InfrastructureItem({
+  icon,
+  label,
+  value,
+}: {
+  icon: IconName;
+  label: string;
+  value: number;
+}) {
+  return (
+    <div className="infrastructure-item">
+      <div className="infrastructure-icon">
+        <Icon name={icon} size={18} />
+      </div>
+
+      <span>{label}</span>
+
+      <strong>{value}</strong>
+    </div>
   );
 }
