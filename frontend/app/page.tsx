@@ -42,6 +42,7 @@ type User = {
   id?: string;
   email?: string;
   username?: string;
+  full_name?: string;
 };
 
 export default function Home() {
@@ -65,29 +66,21 @@ export default function Home() {
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState("");
 
-  /*
-   * ---------------------------------------------------------
-   * LOAD SAVED LOGIN
-   * ---------------------------------------------------------
-   */
-
   useEffect(() => {
     const savedToken = localStorage.getItem("cloudmind_token");
 
     if (savedToken) {
       setToken(savedToken);
-      loadCloudMindData(savedToken);
       loadCurrentUser(savedToken);
+      loadCloudMindData(savedToken);
     } else {
       checkAPI();
     }
   }, []);
 
-  /*
-   * ---------------------------------------------------------
-   * API HEALTH CHECK
-   * ---------------------------------------------------------
-   */
+  /* =========================
+     API HEALTH
+  ========================= */
 
   const checkAPI = async () => {
     setApiStatus("Checking...");
@@ -105,11 +98,9 @@ export default function Home() {
     }
   };
 
-  /*
-   * ---------------------------------------------------------
-   * GENERIC API REQUEST
-   * ---------------------------------------------------------
-   */
+  /* =========================
+     API REQUEST
+  ========================= */
 
   const apiRequest = async (
     endpoint: string,
@@ -123,10 +114,13 @@ export default function Home() {
       headers.Authorization = `Bearer ${authToken}`;
     }
 
-    const response = await fetch(`${API_URL}${endpoint}`, {
-      method: "GET",
-      headers,
-    });
+    const response = await fetch(
+      `${API_URL}${endpoint}`,
+      {
+        method: "GET",
+        headers,
+      }
+    );
 
     if (response.status === 401) {
       throw new Error("AUTH_REQUIRED");
@@ -143,15 +137,15 @@ export default function Home() {
     return response.json();
   };
 
-  /*
-   * ---------------------------------------------------------
-   * LOGIN
-   * ---------------------------------------------------------
-   */
+  /* =========================
+     LOGIN
+  ========================= */
 
   const login = async () => {
     if (!loginEmail || !loginPassword) {
-      setLoginError("Please enter email and password.");
+      setLoginError(
+        "Please enter your email and password."
+      );
       return;
     }
 
@@ -164,63 +158,61 @@ export default function Home() {
       formData.append("username", loginEmail);
       formData.append("password", loginPassword);
 
-      const response = await fetch(`${API_URL}/auth/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type":
-            "application/x-www-form-urlencoded",
-        },
-        body: formData.toString(),
-      });
+      const response = await fetch(
+        `${API_URL}/auth/login`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/x-www-form-urlencoded",
+          },
+          body: formData.toString(),
+        }
+      );
 
       if (!response.ok) {
         const text = await response.text();
 
         throw new Error(
-          text || "Login failed. Check your credentials."
+          text || "Incorrect email or password."
         );
       }
 
       const data = await response.json();
 
-      const accessToken = data.access_token;
-
-      if (!accessToken) {
+      if (!data.access_token) {
         throw new Error(
-          "Login succeeded but no access token was returned."
+          "No access token received from server."
         );
       }
 
       localStorage.setItem(
         "cloudmind_token",
-        accessToken
+        data.access_token
       );
 
-      setToken(accessToken);
+      setToken(data.access_token);
 
-      await loadCurrentUser(accessToken);
-      await loadCloudMindData(accessToken);
-
-      setLoginEmail("");
-      setLoginPassword("");
+      await loadCurrentUser(data.access_token);
+      await loadCloudMindData(data.access_token);
     } catch (err) {
-      if (err instanceof Error) {
-        setLoginError(err.message);
-      } else {
-        setLoginError("Login failed.");
-      }
+      setLoginError(
+        err instanceof Error
+          ? err.message
+          : "Login failed."
+      );
     } finally {
       setLoginLoading(false);
     }
   };
 
-  /*
-   * ---------------------------------------------------------
-   * CURRENT USER
-   * ---------------------------------------------------------
-   */
+  /* =========================
+     USER
+  ========================= */
 
-  const loadCurrentUser = async (authToken: string) => {
+  const loadCurrentUser = async (
+    authToken: string
+  ) => {
     try {
       const data = await apiRequest(
         "/auth/me",
@@ -229,47 +221,51 @@ export default function Home() {
 
       setUser(data);
     } catch {
-      // User information is optional for the dashboard.
+      // Ignore user loading errors.
     }
   };
 
-  /*
-   * ---------------------------------------------------------
-   * LOAD PROJECTS
-   * ---------------------------------------------------------
-   */
+  /* =========================
+     PROJECTS
+  ========================= */
 
-  const loadProjects = async (authToken: string) => {
+  const loadProjects = async (
+    authToken: string
+  ) => {
     const data = await apiRequest(
       "/projects",
       authToken
     );
 
-    setProjects(Array.isArray(data) ? data : []);
-    return Array.isArray(data) ? data : [];
+    const result = Array.isArray(data) ? data : [];
+
+    setProjects(result);
+
+    return result;
   };
 
-  /*
-   * ---------------------------------------------------------
-   * LOAD CLUSTERS
-   * ---------------------------------------------------------
-   */
+  /* =========================
+     CLUSTERS
+  ========================= */
 
-  const loadClusters = async (authToken: string) => {
+  const loadClusters = async (
+    authToken: string
+  ) => {
     const data = await apiRequest(
       "/clusters",
       authToken
     );
 
-    setClusters(Array.isArray(data) ? data : []);
-    return Array.isArray(data) ? data : [];
+    const result = Array.isArray(data) ? data : [];
+
+    setClusters(result);
+
+    return result;
   };
 
-  /*
-   * ---------------------------------------------------------
-   * LOAD APPLICATIONS FOR PROJECT
-   * ---------------------------------------------------------
-   */
+  /* =========================
+     APPLICATIONS
+  ========================= */
 
   const loadApplicationsForProject = async (
     projectId: string,
@@ -283,11 +279,9 @@ export default function Home() {
     return Array.isArray(data) ? data : [];
   };
 
-  /*
-   * ---------------------------------------------------------
-   * LOAD ENVIRONMENTS FOR APPLICATION
-   * ---------------------------------------------------------
-   */
+  /* =========================
+     ENVIRONMENTS
+  ========================= */
 
   const loadEnvironmentsForApplication = async (
     applicationId: string,
@@ -301,11 +295,9 @@ export default function Home() {
     return Array.isArray(data) ? data : [];
   };
 
-  /*
-   * ---------------------------------------------------------
-   * LOAD DEPLOYMENTS FOR ENVIRONMENT
-   * ---------------------------------------------------------
-   */
+  /* =========================
+     DEPLOYMENTS
+  ========================= */
 
   const loadDeploymentsForEnvironment = async (
     environmentId: string,
@@ -319,11 +311,9 @@ export default function Home() {
     return Array.isArray(data) ? data : [];
   };
 
-  /*
-   * ---------------------------------------------------------
-   * LOAD EVERYTHING
-   * ---------------------------------------------------------
-   */
+  /* =========================
+     LOAD ALL DATA
+  ========================= */
 
   const loadCloudMindData = async (
     authToken: string
@@ -335,67 +325,51 @@ export default function Home() {
       const loadedProjects =
         await loadProjects(authToken);
 
-      const loadedClusters =
-        await loadClusters(authToken);
+      await loadClusters(authToken);
 
       const allApplications: Application[] = [];
       const allEnvironments: Environment[] = [];
       const allDeployments: Deployment[] = [];
 
-      /*
-       * Projects → Applications
-       */
       for (const project of loadedProjects) {
         try {
-          const projectApplications =
+          const apps =
             await loadApplicationsForProject(
               project.id,
               authToken
             );
 
-          allApplications.push(
-            ...projectApplications
-          );
+          allApplications.push(...apps);
         } catch {
-          // Continue loading other projects.
+          // Continue.
         }
       }
 
-      /*
-       * Applications → Environments
-       */
       for (const application of allApplications) {
         try {
-          const applicationEnvironments =
+          const envs =
             await loadEnvironmentsForApplication(
               application.id,
               authToken
             );
 
-          allEnvironments.push(
-            ...applicationEnvironments
-          );
+          allEnvironments.push(...envs);
         } catch {
-          // Continue loading other applications.
+          // Continue.
         }
       }
 
-      /*
-       * Environments → Deployments
-       */
       for (const environment of allEnvironments) {
         try {
-          const environmentDeployments =
+          const deps =
             await loadDeploymentsForEnvironment(
               environment.id,
               authToken
             );
 
-          allDeployments.push(
-            ...environmentDeployments
-          );
+          allDeployments.push(...deps);
         } catch {
-          // Continue loading other environments.
+          // Continue.
         }
       }
 
@@ -414,7 +388,7 @@ export default function Home() {
         setError(
           err instanceof Error
             ? err.message
-            : "Failed to load CloudMind data."
+            : "Unable to load CloudMind data."
         );
       }
     } finally {
@@ -422,11 +396,9 @@ export default function Home() {
     }
   };
 
-  /*
-   * ---------------------------------------------------------
-   * LOGOUT
-   * ---------------------------------------------------------
-   */
+  /* =========================
+     LOGOUT
+  ========================= */
 
   const logout = () => {
     localStorage.removeItem("cloudmind_token");
@@ -443,249 +415,152 @@ export default function Home() {
     setActive("Dashboard");
   };
 
-  /*
-   * ---------------------------------------------------------
-   * REFRESH
-   * ---------------------------------------------------------
-   */
+  /* =========================
+     HELPERS
+  ========================= */
 
-  const refreshData = async () => {
-    if (!token) {
-      await checkAPI();
-      return;
-    }
-
-    await loadCloudMindData(token);
+  const getProjectName = (
+    projectId: string
+  ) => {
+    return (
+      projects.find(
+        (project) => project.id === projectId
+      )?.name || projectId
+    );
   };
-
-  /*
-   * ---------------------------------------------------------
-   * HELPER FUNCTIONS
-   * ---------------------------------------------------------
-   */
 
   const getApplicationName = (
     applicationId: string
   ) => {
-    const application = applications.find(
-      (item) => item.id === applicationId
+    return (
+      applications.find(
+        (application) =>
+          application.id === applicationId
+      )?.name || applicationId
     );
-
-    return application?.name || applicationId;
   };
 
   const getEnvironmentName = (
     environmentId: string
   ) => {
-    const environment = environments.find(
-      (item) => item.id === environmentId
+    return (
+      environments.find(
+        (environment) =>
+          environment.id === environmentId
+      )?.name || environmentId
     );
-
-    return environment?.name || environmentId;
   };
 
-  const getProjectName = (
-    projectId: string
+  const getStatusClass = (
+    status: string
   ) => {
-    const project = projects.find(
-      (item) => item.id === projectId
-    );
+    switch (status.toUpperCase()) {
+      case "SUCCESS":
+        return "status status-success";
 
-    return project?.name || projectId;
+      case "RUNNING":
+        return "status status-running";
+
+      case "PENDING":
+        return "status status-pending";
+
+      case "FAILED":
+        return "status status-failed";
+
+      default:
+        return "status";
+    }
   };
 
-  const getStatusClass = (status: string) => {
-    const normalized =
-      status.toUpperCase();
-
-    if (normalized === "SUCCESS") {
-      return "status status-success";
-    }
-
-    if (normalized === "RUNNING") {
-      return "status status-running";
-    }
-
-    if (normalized === "PENDING") {
-      return "status status-pending";
-    }
-
-    return "status";
-  };
-
-  /*
-   * ---------------------------------------------------------
-   * LOGIN SCREEN
-   * ---------------------------------------------------------
-   */
+  /* =========================
+     LOGIN SCREEN
+  ========================= */
 
   if (!token) {
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: "20px",
-          background: "#f4f7fb",
-        }}
-      >
-        <div
-          style={{
-            width: "100%",
-            maxWidth: "430px",
-            background: "white",
-            border: "1px solid #e5e7eb",
-            borderRadius: "14px",
-            padding: "32px",
-            boxShadow:
-              "0 8px 30px rgba(0,0,0,0.08)",
-          }}
-        >
-          <div
-            style={{
-              fontSize: "30px",
-              fontWeight: "700",
-              marginBottom: "8px",
-            }}
-          >
-            Cloud
-            <span style={{ color: "#2563eb" }}>
-              Mind
-            </span>
+      <div className="login-page">
+        <div className="login-card">
+          <div className="login-logo">
+            Cloud<span>Mind</span>
           </div>
 
-          <p
-            style={{
-              color: "#6b7280",
-              marginBottom: "28px",
-            }}
-          >
+          <p className="login-subtitle">
             Cloud Management System
           </p>
 
-          <h2
-            style={{
-              marginBottom: "20px",
-              fontSize: "22px",
-            }}
-          >
-            Sign in
-          </h2>
+          <h2>Sign in</h2>
 
-          <label
-            style={{
-              display: "block",
-              marginBottom: "7px",
-              fontWeight: "600",
-            }}
-          >
-            Email
-          </label>
+          <div className="form-group">
+            <label>Email</label>
 
-          <input
-            type="email"
-            value={loginEmail}
-            onChange={(e) =>
-              setLoginEmail(e.target.value)
-            }
-            placeholder="Enter your email"
-            style={{
-              width: "100%",
-              padding: "12px",
-              border: "1px solid #d1d5db",
-              borderRadius: "7px",
-              marginBottom: "16px",
-              fontSize: "15px",
-            }}
-          />
-
-          <label
-            style={{
-              display: "block",
-              marginBottom: "7px",
-              fontWeight: "600",
-            }}
-          >
-            Password
-          </label>
-
-          <input
-            type="password"
-            value={loginPassword}
-            onChange={(e) =>
-              setLoginPassword(e.target.value)
-            }
-            placeholder="Enter your password"
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                login();
+            <input
+              type="email"
+              placeholder="Enter your email"
+              value={loginEmail}
+              onChange={(e) =>
+                setLoginEmail(e.target.value)
               }
-            }}
-            style={{
-              width: "100%",
-              padding: "12px",
-              border: "1px solid #d1d5db",
-              borderRadius: "7px",
-              marginBottom: "18px",
-              fontSize: "15px",
-            }}
-          />
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Password</label>
+
+            <input
+              type="password"
+              placeholder="Enter your password"
+              value={loginPassword}
+              onChange={(e) =>
+                setLoginPassword(e.target.value)
+              }
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  login();
+                }
+              }}
+            />
+          </div>
 
           {loginError && (
-            <div
-              style={{
-                background: "#fee2e2",
-                color: "#991b1b",
-                padding: "12px",
-                borderRadius: "7px",
-                marginBottom: "18px",
-                fontSize: "14px",
-              }}
-            >
+            <div className="error-message">
               {loginError}
             </div>
           )}
 
           <button
-            className="button"
+            className="login-button"
             onClick={login}
             disabled={loginLoading}
-            style={{
-              width: "100%",
-              padding: "12px",
-            }}
           >
             {loginLoading
               ? "Signing in..."
               : "Sign in"}
           </button>
 
-          <div
-            style={{
-              marginTop: "22px",
-              padding: "12px",
-              background: "#f9fafb",
-              borderRadius: "7px",
-              fontSize: "13px",
-              color: "#6b7280",
-            }}
-          >
-            API:
-            <br />
-            {API_URL}
+          <div className="connection-status">
+            <span
+              className={
+                apiStatus === "Online"
+                  ? "online-dot"
+                  : "offline-dot"
+              }
+            >
+              ●
+            </span>
+
+            Backend{" "}
+            {apiStatus === "Online"
+              ? "connected"
+              : "checking connection..."}
           </div>
         </div>
       </div>
     );
   }
 
-  /*
-   * ---------------------------------------------------------
-   * MAIN DASHBOARD
-   * ---------------------------------------------------------
-   */
+  /* =========================
+     DASHBOARD
+  ========================= */
 
   return (
     <div className="dashboard">
@@ -694,27 +569,24 @@ export default function Home() {
           Cloud<span>Mind</span>
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "18px",
-          }}
-        >
-          <div className="header-status">
-            ● System Online
+        <div className="header-right">
+          <div className="system-status">
+            <span className="online-dot">
+              ●
+            </span>
+
+            System Online
+          </div>
+
+          <div className="user-name">
+            {user?.full_name ||
+              user?.email ||
+              "User"}
           </div>
 
           <button
+            className="logout-button"
             onClick={logout}
-            style={{
-              background: "transparent",
-              border: "1px solid #4b5563",
-              color: "white",
-              padding: "7px 12px",
-              borderRadius: "6px",
-              cursor: "pointer",
-            }}
           >
             Logout
           </button>
@@ -724,7 +596,7 @@ export default function Home() {
       <div className="layout">
         <aside className="sidebar">
           <div className="sidebar-title">
-            Navigation
+            CloudMind
           </div>
 
           {[
@@ -750,48 +622,23 @@ export default function Home() {
             </div>
           ))}
 
-          <div
-            style={{
-              marginTop: "25px",
-              padding: "12px",
-              background: "#f9fafb",
-              borderRadius: "8px",
-              fontSize: "12px",
-              color: "#6b7280",
-              wordBreak: "break-word",
-            }}
-          >
-            <strong>API</strong>
-            <br />
-            {API_URL}
-            <br />
-            <br />
-            Status:
-            <br />
-            <span
-              style={{
-                color:
-                  apiStatus === "Online"
-                    ? "#166534"
-                    : "#92400e",
-                fontWeight: "700",
-              }}
-            >
-              {apiStatus}
-            </span>
+          <div className="sidebar-footer">
+            <div className="connection-label">
+              Backend
+            </div>
+
+            <div className="backend-connected">
+              <span className="online-dot">
+                ●
+              </span>
+
+              Connected
+            </div>
           </div>
         </aside>
 
         <main className="main">
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "flex-start",
-              gap: "20px",
-              marginBottom: "8px",
-            }}
-          >
+          <div className="page-heading">
             <div>
               <h1 className="page-title">
                 {active}
@@ -802,54 +649,54 @@ export default function Home() {
               </p>
             </div>
 
-            {active !== "Dashboard" && (
-              <button
-                className="button"
-                onClick={refreshData}
-                disabled={loading}
-              >
-                {loading
-                  ? "Refreshing..."
-                  : "Refresh"}
-              </button>
-            )}
+            <button
+              className="refresh-button"
+              onClick={() =>
+                loadCloudMindData(token)
+              }
+              disabled={loading}
+            >
+              {loading
+                ? "Refreshing..."
+                : "Refresh"}
+            </button>
           </div>
 
           {error && (
-            <div
-              style={{
-                background: "#fee2e2",
-                color: "#991b1b",
-                padding: "14px",
-                borderRadius: "8px",
-                marginBottom: "20px",
-              }}
-            >
+            <div className="error-banner">
               <strong>API Error:</strong>{" "}
               {error}
             </div>
           )}
 
-          {loading && (
-            <div
-              style={{
-                background: "#eff6ff",
-                color: "#1d4ed8",
-                padding: "14px",
-                borderRadius: "8px",
-                marginBottom: "20px",
-              }}
-            >
-              Loading CloudMind data...
-            </div>
-          )}
-
-          {/* =================================================
+          {/* =========================
               DASHBOARD
-          ================================================= */}
+          ========================= */}
 
           {active === "Dashboard" && (
             <>
+              <div className="welcome-box">
+                <div>
+                  <h2>
+                    Welcome to CloudMind
+                  </h2>
+
+                  <p>
+                    Manage your cloud
+                    infrastructure from one
+                    place.
+                  </p>
+                </div>
+
+                <div className="system-online">
+                  <span className="online-dot">
+                    ●
+                  </span>
+
+                  Backend Connected
+                </div>
+              </div>
+
               <div className="cards">
                 <div className="card">
                   <div className="card-label">
@@ -858,6 +705,10 @@ export default function Home() {
 
                   <div className="card-value">
                     {projects.length}
+                  </div>
+
+                  <div className="card-description">
+                    Active projects
                   </div>
                 </div>
 
@@ -869,15 +720,23 @@ export default function Home() {
                   <div className="card-value">
                     {applications.length}
                   </div>
+
+                  <div className="card-description">
+                    Registered applications
+                  </div>
                 </div>
 
                 <div className="card">
                   <div className="card-label">
-                    Clusters
+                    Environments
                   </div>
 
                   <div className="card-value">
-                    {clusters.length}
+                    {environments.length}
+                  </div>
+
+                  <div className="card-description">
+                    Configured environments
                   </div>
                 </div>
 
@@ -889,50 +748,44 @@ export default function Home() {
                   <div className="card-value">
                     {deployments.length}
                   </div>
+
+                  <div className="card-description">
+                    Total deployments
+                  </div>
                 </div>
               </div>
 
               <section className="section">
                 <div className="section-header">
-                  <h2 className="section-title">
-                    CloudMind API
-                  </h2>
+                  <div>
+                    <h2 className="section-title">
+                      Recent Deployments
+                    </h2>
 
-                  <button
-                    className="button"
-                    onClick={checkAPI}
-                  >
-                    Check API
-                  </button>
-                </div>
-
-                <div className="api-box">
-                  API URL: {API_URL}
-                  <br />
-                  Status: {apiStatus}
-                  <br />
-                  Authentication: Connected
-                </div>
-              </section>
-
-              <section className="section">
-                <div className="section-header">
-                  <h2 className="section-title">
-                    Recent Deployments
-                  </h2>
+                    <p className="section-description">
+                      Latest application
+                      deployments
+                    </p>
+                  </div>
                 </div>
 
                 {deployments.length === 0 ? (
-                  <p>
+                  <div className="empty-state">
                     No deployments found.
-                  </p>
+                  </div>
                 ) : (
                   <table className="table">
                     <thead>
                       <tr>
-                        <th>Application</th>
-                        <th>Environment</th>
-                        <th>Version</th>
+                        <th>
+                          Application
+                        </th>
+                        <th>
+                          Environment
+                        </th>
+                        <th>
+                          Version
+                        </th>
                         <th>Status</th>
                       </tr>
                     </thead>
@@ -941,49 +794,54 @@ export default function Home() {
                       {deployments
                         .slice(0, 10)
                         .map(
-                          (deployment) => (
-                            <tr
-                              key={
-                                deployment.id
-                              }
-                            >
-                              <td>
-                                {getApplicationName(
-                                  environments.find(
-                                    (environment) =>
-                                      environment.id ===
-                                      deployment.environment_id
-                                  )
-                                    ?.application_id ||
-                                    ""
-                                )}
-                              </td>
-
-                              <td>
-                                {getEnvironmentName(
+                          (deployment) => {
+                            const environment =
+                              environments.find(
+                                (item) =>
+                                  item.id ===
                                   deployment.environment_id
-                                )}
-                              </td>
+                              );
 
-                              <td>
-                                {
-                                  deployment.version
+                            return (
+                              <tr
+                                key={
+                                  deployment.id
                                 }
-                              </td>
+                              >
+                                <td>
+                                  {environment
+                                    ? getApplicationName(
+                                        environment.application_id
+                                      )
+                                    : "—"}
+                                </td>
 
-                              <td>
-                                <span
-                                  className={getStatusClass(
-                                    deployment.status
+                                <td>
+                                  {getEnvironmentName(
+                                    deployment.environment_id
                                   )}
-                                >
+                                </td>
+
+                                <td>
                                   {
-                                    deployment.status
+                                    deployment.version
                                   }
-                                </span>
-                              </td>
-                            </tr>
-                          )
+                                </td>
+
+                                <td>
+                                  <span
+                                    className={getStatusClass(
+                                      deployment.status
+                                    )}
+                                  >
+                                    {
+                                      deployment.status
+                                    }
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          }
                         )}
                     </tbody>
                   </table>
@@ -992,93 +850,92 @@ export default function Home() {
             </>
           )}
 
-          {/* =================================================
+          {/* =========================
               PROJECTS
-          ================================================= */}
+          ========================= */}
 
           {active === "Projects" && (
             <section className="section">
               <div className="section-header">
-                <h2 className="section-title">
-                  Projects
-                </h2>
+                <div>
+                  <h2 className="section-title">
+                    Projects
+                  </h2>
 
-                <span>
-                  {projects.length} total
-                </span>
+                  <p className="section-description">
+                    Manage your CloudMind
+                    projects
+                  </p>
+                </div>
+
+                <div className="count-badge">
+                  {projects.length} projects
+                </div>
               </div>
 
               {projects.length === 0 ? (
-                <p>
+                <div className="empty-state">
                   No projects found.
-                </p>
+                </div>
               ) : (
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Name</th>
-                      <th>Description</th>
-                      <th>Project ID</th>
-                    </tr>
-                  </thead>
+                <div className="resource-grid">
+                  {projects.map(
+                    (project) => (
+                      <div
+                        className="resource-card"
+                        key={project.id}
+                      >
+                        <h3>
+                          {project.name}
+                        </h3>
 
-                  <tbody>
-                    {projects.map(
-                      (project) => (
-                        <tr
-                          key={project.id}
-                        >
-                          <td>
-                            <strong>
-                              {project.name}
-                            </strong>
-                          </td>
+                        <p>
+                          {project.description ||
+                            "No description provided."}
+                        </p>
 
-                          <td>
-                            {project.description ||
-                              "—"}
-                          </td>
-
-                          <td
-                            style={{
-                              fontFamily:
-                                "monospace",
-                              fontSize:
-                                "12px",
-                            }}
-                          >
-                            {project.id}
-                          </td>
-                        </tr>
-                      )
-                    )}
-                  </tbody>
-                </table>
+                        <div className="resource-id">
+                          ID: {project.id}
+                        </div>
+                      </div>
+                    )
+                  )}
+                </div>
               )}
             </section>
           )}
 
-          {/* =================================================
+          {/* =========================
               APPLICATIONS
-          ================================================= */}
+          ========================= */}
 
           {active ===
             "Applications" && (
             <section className="section">
               <div className="section-header">
-                <h2 className="section-title">
-                  Applications
-                </h2>
+                <div>
+                  <h2 className="section-title">
+                    Applications
+                  </h2>
 
-                <span>
-                  {applications.length} total
-                </span>
+                  <p className="section-description">
+                    Applications connected to
+                    your projects
+                  </p>
+                </div>
+
+                <div className="count-badge">
+                  {
+                    applications.length
+                  }{" "}
+                  applications
+                </div>
               </div>
 
               {applications.length === 0 ? (
-                <p>
+                <div className="empty-state">
                   No applications found.
-                </p>
+                </div>
               ) : (
                 <table className="table">
                   <thead>
@@ -1086,7 +943,7 @@ export default function Home() {
                       <th>Name</th>
                       <th>Project</th>
                       <th>Repository</th>
-                      <th>Application ID</th>
+                      <th>ID</th>
                     </tr>
                   </thead>
 
@@ -1120,26 +977,16 @@ export default function Home() {
                                 }
                                 target="_blank"
                                 rel="noreferrer"
-                                style={{
-                                  color:
-                                    "#2563eb",
-                                }}
+                                className="repository-link"
                               >
-                                Repository
+                                View Repository
                               </a>
                             ) : (
                               "—"
                             )}
                           </td>
 
-                          <td
-                            style={{
-                              fontFamily:
-                                "monospace",
-                              fontSize:
-                                "12px",
-                            }}
-                          >
+                          <td className="id-cell">
                             {
                               application.id
                             }
@@ -1153,27 +1000,35 @@ export default function Home() {
             </section>
           )}
 
-          {/* =================================================
+          {/* =========================
               ENVIRONMENTS
-          ================================================= */}
+          ========================= */}
 
           {active ===
             "Environments" && (
             <section className="section">
               <div className="section-header">
-                <h2 className="section-title">
-                  Environments
-                </h2>
+                <div>
+                  <h2 className="section-title">
+                    Environments
+                  </h2>
 
-                <span>
-                  {environments.length} total
-                </span>
+                  <p className="section-description">
+                    Application deployment
+                    environments
+                  </p>
+                </div>
+
+                <div className="count-badge">
+                  {environments.length}{" "}
+                  environments
+                </div>
               </div>
 
               {environments.length === 0 ? (
-                <p>
+                <div className="empty-state">
                   No environments found.
-                </p>
+                </div>
               ) : (
                 <table className="table">
                   <thead>
@@ -1181,7 +1036,7 @@ export default function Home() {
                       <th>Name</th>
                       <th>Application</th>
                       <th>Cluster</th>
-                      <th>Environment ID</th>
+                      <th>ID</th>
                     </tr>
                   </thead>
 
@@ -1221,14 +1076,7 @@ export default function Home() {
                                 : "—"}
                             </td>
 
-                            <td
-                              style={{
-                                fontFamily:
-                                  "monospace",
-                                fontSize:
-                                  "12px",
-                              }}
-                            >
+                            <td className="id-cell">
                               {
                                 environment.id
                               }
@@ -1243,114 +1091,114 @@ export default function Home() {
             </section>
           )}
 
-          {/* =================================================
+          {/* =========================
               CLUSTERS
-          ================================================= */}
+          ========================= */}
 
           {active === "Clusters" && (
             <section className="section">
               <div className="section-header">
-                <h2 className="section-title">
-                  Clusters
-                </h2>
+                <div>
+                  <h2 className="section-title">
+                    Clusters
+                  </h2>
 
-                <span>
-                  {clusters.length} total
-                </span>
+                  <p className="section-description">
+                    Cloud infrastructure
+                    clusters
+                  </p>
+                </div>
+
+                <div className="count-badge">
+                  {clusters.length} clusters
+                </div>
               </div>
 
               {clusters.length === 0 ? (
-                <p>
+                <div className="empty-state">
                   No clusters found.
-                </p>
+                </div>
               ) : (
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Name</th>
-                      <th>Provider</th>
-                      <th>Region</th>
-                      <th>Cluster ID</th>
-                    </tr>
-                  </thead>
+                <div className="resource-grid">
+                  {clusters.map(
+                    (cluster) => (
+                      <div
+                        className="resource-card"
+                        key={cluster.id}
+                      >
+                        <div className="cluster-icon">
+                          ☁
+                        </div>
 
-                  <tbody>
-                    {clusters.map(
-                      (cluster) => (
-                        <tr
-                          key={cluster.id}
-                        >
-                          <td>
-                            <strong>
-                              {
-                                cluster.name
-                              }
-                            </strong>
-                          </td>
+                        <h3>
+                          {cluster.name}
+                        </h3>
 
-                          <td>
-                            {
-                              cluster.provider ||
-                              "—"
-                            }
-                          </td>
+                        <p>
+                          Provider:{" "}
+                          {cluster.provider ||
+                            "Unknown"}
+                        </p>
 
-                          <td>
-                            {
-                              cluster.region ||
-                              "—"
-                            }
-                          </td>
+                        <p>
+                          Region:{" "}
+                          {cluster.region ||
+                            "Unknown"}
+                        </p>
 
-                          <td
-                            style={{
-                              fontFamily:
-                                "monospace",
-                              fontSize:
-                                "12px",
-                            }}
-                          >
-                            {cluster.id}
-                          </td>
-                        </tr>
-                      )
-                    )}
-                  </tbody>
-                </table>
+                        <div className="resource-id">
+                          ID: {cluster.id}
+                        </div>
+                      </div>
+                    )
+                  )}
+                </div>
               )}
             </section>
           )}
 
-          {/* =================================================
+          {/* =========================
               DEPLOYMENTS
-          ================================================= */}
+          ========================= */}
 
           {active ===
             "Deployments" && (
             <section className="section">
               <div className="section-header">
-                <h2 className="section-title">
-                  Deployments
-                </h2>
+                <div>
+                  <h2 className="section-title">
+                    Deployments
+                  </h2>
 
-                <span>
-                  {deployments.length} total
-                </span>
+                  <p className="section-description">
+                    Application deployment
+                    history
+                  </p>
+                </div>
+
+                <div className="count-badge">
+                  {deployments.length}{" "}
+                  deployments
+                </div>
               </div>
 
               {deployments.length === 0 ? (
-                <p>
+                <div className="empty-state">
                   No deployments found.
-                </p>
+                </div>
               ) : (
                 <table className="table">
                   <thead>
                     <tr>
-                      <th>Application</th>
-                      <th>Environment</th>
+                      <th>
+                        Application
+                      </th>
+                      <th>
+                        Environment
+                      </th>
                       <th>Version</th>
                       <th>Status</th>
-                      <th>Deployment ID</th>
+                      <th>ID</th>
                     </tr>
                   </thead>
 
@@ -1379,11 +1227,9 @@ export default function Home() {
                             </td>
 
                             <td>
-                              {
-                                getEnvironmentName(
-                                  deployment.environment_id
-                                )
-                              }
+                              {getEnvironmentName(
+                                deployment.environment_id
+                              )}
                             </td>
 
                             <td>
@@ -1406,14 +1252,7 @@ export default function Home() {
                               </span>
                             </td>
 
-                            <td
-                              style={{
-                                fontFamily:
-                                  "monospace",
-                                fontSize:
-                                  "12px",
-                              }}
-                            >
+                            <td className="id-cell">
                               {
                                 deployment.id
                               }
