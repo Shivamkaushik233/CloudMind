@@ -55,7 +55,6 @@ type IconName =
   | "search"
   | "bell"
   | "chevron"
-  | "plus"
   | "refresh"
   | "check"
   | "info"
@@ -160,13 +159,6 @@ function Icon({
       return (
         <svg {...common}>
           <path d="m9 18 6-6-6-6" />
-        </svg>
-      );
-
-    case "plus":
-      return (
-        <svg {...common}>
-          <path d="M12 5v14M5 12h14" />
         </svg>
       );
 
@@ -456,7 +448,6 @@ export default function Home() {
         <div className="login-card">
           <div className="brand-large">
             <div className="brand-cloud">
-              <Icon name="cloud" size={0} />
               <span>☁</span>
             </div>
 
@@ -464,18 +455,22 @@ export default function Home() {
               <h1>
                 Cloud<span>Mind</span>
               </h1>
+
               <p>Cloud Management System</p>
             </div>
           </div>
 
           <div className="login-heading">
             <h2>Welcome back</h2>
-            <p>Sign in to manage your cloud infrastructure.</p>
+            <p>
+              Sign in to manage your cloud infrastructure.
+            </p>
           </div>
 
           <form onSubmit={login}>
             <div className="form-group">
               <label>Email address</label>
+
               <input
                 type="email"
                 placeholder="you@example.com"
@@ -487,6 +482,7 @@ export default function Home() {
 
             <div className="form-group">
               <label>Password</label>
+
               <input
                 type="password"
                 placeholder="Enter your password"
@@ -523,16 +519,18 @@ export default function Home() {
   return (
     <div className="app-shell">
 
-      {/* SIDEBAR */}
       <aside className="sidebar">
 
         <div className="sidebar-brand">
-          <div className="sidebar-logo">☁</div>
+          <div className="sidebar-logo">
+            ☁
+          </div>
 
           <div>
             <div className="sidebar-title">
               Cloud<span>Mind</span>
             </div>
+
             <div className="sidebar-subtitle">
               Cloud Management System
             </div>
@@ -589,21 +587,25 @@ export default function Home() {
             </div>
 
             <div>
-              <strong>{user?.full_name || "User"}</strong>
-              <small>{user?.role || "Developer"}</small>
+              <strong>
+                {user?.full_name || "User"}
+              </strong>
+
+              <small>
+                {user?.role || "Developer"}
+              </small>
             </div>
           </div>
         </div>
       </aside>
 
-      {/* MAIN */}
       <main className="main-content">
 
-        {/* TOP BAR */}
         <header className="topbar">
 
           <div className="search-box">
             <Icon name="search" size={19} />
+
             <input
               placeholder="Search projects, applications, environments..."
             />
@@ -619,6 +621,7 @@ export default function Home() {
             <div className="top-divider" />
 
             <div className="profile-area">
+
               <div className="profile-avatar">
                 {(user?.full_name || "U")
                   .charAt(0)
@@ -626,11 +629,18 @@ export default function Home() {
               </div>
 
               <div className="profile-text">
-                <strong>{user?.full_name || "User"}</strong>
-                <span>{user?.role || "Developer"}</span>
+                <strong>
+                  {user?.full_name || "User"}
+                </strong>
+
+                <span>
+                  {user?.role || "Developer"}
+                </span>
               </div>
 
-              <span className="profile-chevron">⌄</span>
+              <span className="profile-chevron">
+                ⌄
+              </span>
             </div>
 
             <button
@@ -645,7 +655,6 @@ export default function Home() {
 
         <div className="page-content">
 
-          {/* HEADER */}
           <div className="page-header">
 
             <div>
@@ -672,17 +681,21 @@ export default function Home() {
             <div className="header-actions">
 
               <div className="system-online">
+
                 <span className="status-dot" />
 
                 <div>
                   <strong>System Online</strong>
                   <small>All systems operational</small>
                 </div>
+
               </div>
 
               <button
                 className="refresh-button"
-                onClick={() => token && loadData(token)}
+                onClick={() =>
+                  token && loadData(token)
+                }
               >
                 <Icon name="refresh" size={17} />
                 Refresh
@@ -699,7 +712,6 @@ export default function Home() {
 
           {activePage === "Dashboard" && (
             <>
-              {/* STAT CARDS */}
               <section className="stats-grid">
 
                 <StatCard
@@ -736,17 +748,21 @@ export default function Home() {
 
               </section>
 
-              {/* DASHBOARD GRID */}
               <section className="dashboard-grid">
 
                 <div className="dashboard-card deployment-chart-card">
 
                   <div className="card-header">
+
                     <div>
                       <h2>
-                        <Icon name="activity" size={19} />
+                        <Icon
+                          name="activity"
+                          size={19}
+                        />
                         Deployment Overview
                       </h2>
+
                       <p>
                         Deployment activity across your infrastructure
                       </p>
@@ -756,9 +772,11 @@ export default function Home() {
                       Last 7 days
                       <span>⌄</span>
                     </button>
+
                   </div>
 
                   <div className="chart-legend">
+
                     <span>
                       <i className="legend success" />
                       Success
@@ -778,6 +796,7 @@ export default function Home() {
                       <i className="legend pending" />
                       Pending
                     </span>
+
                   </div>
 
                   <div className="fake-chart">
@@ -820,9 +839,11 @@ export default function Home() {
                       </svg>
 
                       <div className="chart-points">
-                        {[0, 1, 2, 3, 4, 5, 6].map((item) => (
-                          <span key={item} />
-                        ))}
+                        {[0, 1, 2, 3, 4, 5, 6].map(
+                          (item) => (
+                            <span key={item} />
+                          )
+                        )}
                       </div>
 
                       <div className="chart-x">
@@ -839,13 +860,14 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* DEPLOYMENT STATUS */}
                 <div className="dashboard-card status-card">
 
                   <div className="card-header">
                     <div>
                       <h2>Deployment Status</h2>
-                      <p>Current deployment health</p>
+                      <p>
+                        Current deployment health
+                      </p>
                     </div>
                   </div>
 
@@ -864,6 +886,7 @@ export default function Home() {
                         <strong>
                           {successPercentage}%
                         </strong>
+
                         <span>Success</span>
                       </div>
                     </div>
@@ -900,15 +923,18 @@ export default function Home() {
 
               </section>
 
-              {/* LOWER GRID */}
               <section className="lower-grid">
 
                 <div className="dashboard-card recent-card">
 
                   <div className="card-header">
+
                     <div>
                       <h2>
-                        <Icon name="rocket" size={19} />
+                        <Icon
+                          name="rocket"
+                          size={19}
+                        />
                         Recent Deployments
                       </h2>
 
@@ -919,10 +945,13 @@ export default function Home() {
 
                     <button
                       className="view-all"
-                      onClick={() => navigate("Deployments")}
+                      onClick={() =>
+                        navigate("Deployments")
+                      }
                     >
                       View all →
                     </button>
+
                   </div>
 
                   {loading ? (
@@ -932,7 +961,11 @@ export default function Home() {
                   ) : deployments.length === 0 ? (
                     <div className="empty-state">
                       <Icon name="rocket" size={30} />
-                      <strong>No deployments yet</strong>
+
+                      <strong>
+                        No deployments yet
+                      </strong>
+
                       <span>
                         Your deployment activity will appear here.
                       </span>
@@ -947,55 +980,70 @@ export default function Home() {
 
                 </div>
 
-                {/* QUICK ACTIONS */}
                 <div className="dashboard-card quick-actions">
 
                   <div className="card-header">
+
                     <div>
                       <h2>Quick Actions</h2>
-                      <p>Common CloudMind actions</p>
+
+                      <p>
+                        Common CloudMind actions
+                      </p>
                     </div>
+
                   </div>
 
                   <QuickAction
                     icon="folder"
                     title="Create Project"
                     description="Start a new project"
-                    onClick={() => navigate("Projects")}
+                    onClick={() =>
+                      navigate("Projects")
+                    }
                   />
 
                   <QuickAction
                     icon="rocket"
                     title="Deploy Application"
                     description="Deploy to your environment"
-                    onClick={() => navigate("Deployments")}
+                    onClick={() =>
+                      navigate("Deployments")
+                    }
                   />
 
                   <QuickAction
                     icon="cluster"
                     title="Manage Clusters"
                     description="View your clusters"
-                    onClick={() => navigate("Clusters")}
+                    onClick={() =>
+                      navigate("Clusters")
+                    }
                   />
 
                   <QuickAction
                     icon="activity"
                     title="View Deployments"
                     description="Check deployment activity"
-                    onClick={() => navigate("Deployments")}
+                    onClick={() =>
+                      navigate("Deployments")
+                    }
                   />
 
                 </div>
 
               </section>
 
-              {/* SYSTEM INFORMATION */}
               <section className="dashboard-card system-info">
 
                 <div className="card-header">
+
                   <div>
                     <h2>
-                      <Icon name="info" size={19} />
+                      <Icon
+                        name="info"
+                        size={19}
+                      />
                       System Information
                     </h2>
 
@@ -1003,6 +1051,7 @@ export default function Home() {
                       CloudMind platform health
                     </p>
                   </div>
+
                 </div>
 
                 <div className="system-info-grid">
@@ -1053,17 +1102,26 @@ export default function Home() {
               icon="folder"
             >
               {projects.map((project) => (
-                <div className="resource-card" key={project.id}>
+                <div
+                  className="resource-card"
+                  key={project.id}
+                >
                   <div className="resource-icon blue">
                     <Icon name="folder" />
                   </div>
 
                   <div className="resource-main">
                     <strong>{project.name}</strong>
-                    <span>{project.description || "CloudMind project"}</span>
+
+                    <span>
+                      {project.description ||
+                        "CloudMind project"}
+                    </span>
                   </div>
 
-                  <code>{project.id.slice(0, 12)}...</code>
+                  <code>
+                    {project.id.slice(0, 12)}...
+                  </code>
                 </div>
               ))}
             </ResourcePage>
@@ -1077,19 +1135,26 @@ export default function Home() {
               icon="apps"
             >
               {applications.map((app) => (
-                <div className="resource-card" key={app.id}>
+                <div
+                  className="resource-card"
+                  key={app.id}
+                >
                   <div className="resource-icon purple">
                     <Icon name="apps" />
                   </div>
 
                   <div className="resource-main">
                     <strong>{app.name}</strong>
+
                     <span>
-                      {app.repository_url || "Repository not specified"}
+                      {app.repository_url ||
+                        "Repository not specified"}
                     </span>
                   </div>
 
-                  <code>{app.id.slice(0, 12)}...</code>
+                  <code>
+                    {app.id.slice(0, 12)}...
+                  </code>
                 </div>
               ))}
             </ResourcePage>
@@ -1103,15 +1168,20 @@ export default function Home() {
               icon="server"
             >
               {environments.map((env) => (
-                <div className="resource-card" key={env.id}>
+                <div
+                  className="resource-card"
+                  key={env.id}
+                >
                   <div className="resource-icon green">
                     <Icon name="server" />
                   </div>
 
                   <div className="resource-main">
                     <strong>{env.name}</strong>
+
                     <span>
-                      Application: {env.application_id.slice(0, 12)}...
+                      Application:{" "}
+                      {env.application_id.slice(0, 12)}...
                     </span>
                   </div>
 
@@ -1131,16 +1201,23 @@ export default function Home() {
               icon="cluster"
             >
               {clusters.map((cluster) => (
-                <div className="resource-card" key={cluster.id}>
+                <div
+                  className="resource-card"
+                  key={cluster.id}
+                >
                   <div className="resource-icon orange">
                     <Icon name="cluster" />
                   </div>
 
                   <div className="resource-main">
                     <strong>{cluster.name}</strong>
+
                     <span>
-                      {cluster.provider || "Unknown provider"} ·{" "}
-                      {cluster.region || "Unknown region"}
+                      {cluster.provider ||
+                        "Unknown provider"}{" "}
+                      ·{" "}
+                      {cluster.region ||
+                        "Unknown region"}
                     </span>
                   </div>
 
@@ -1161,20 +1238,32 @@ export default function Home() {
               icon="rocket"
             >
               {deployments.map((deployment) => (
-                <div className="resource-card" key={deployment.id}>
+                <div
+                  className="resource-card"
+                  key={deployment.id}
+                >
                   <div className="resource-icon blue">
                     <Icon name="rocket" />
                   </div>
 
                   <div className="resource-main">
-                    <strong>{deployment.version}</strong>
+                    <strong>
+                      {deployment.version}
+                    </strong>
+
                     <span>
                       Environment:{" "}
-                      {deployment.environment_id.slice(0, 12)}...
+                      {deployment.environment_id.slice(
+                        0,
+                        12
+                      )}
+                      ...
                     </span>
                   </div>
 
-                  <StatusBadge status={deployment.status} />
+                  <StatusBadge
+                    status={deployment.status}
+                  />
                 </div>
               ))}
             </ResourcePage>
@@ -1203,6 +1292,7 @@ function StatCard({
     <div className={`stat-card ${variant}`}>
 
       <div className="stat-top">
+
         <div className={`stat-icon ${variant}`}>
           <Icon name={icon} size={21} />
         </div>
@@ -1210,6 +1300,7 @@ function StatCard({
         <span className="stat-title">
           {title}
         </span>
+
       </div>
 
       <div className="stat-value">
@@ -1237,12 +1328,17 @@ function StatusRow({
 }) {
   return (
     <div className="status-row">
+
       <div>
-        <i className={`status-indicator ${type}`} />
+        <i
+          className={`status-indicator ${type}`}
+        />
+
         <span>{label}</span>
       </div>
 
       <strong>{value}</strong>
+
     </div>
   );
 }
@@ -1259,7 +1355,10 @@ function QuickAction({
   onClick: () => void;
 }) {
   return (
-    <button className="quick-action" onClick={onClick}>
+    <button
+      className="quick-action"
+      onClick={onClick}
+    >
 
       <div className="quick-action-icon">
         <Icon name={icon} size={19} />
@@ -1291,7 +1390,10 @@ function InfoItem({
       <span>{label}</span>
 
       <strong>
-        {status && <i className="info-status" />}
+        {status && (
+          <i className="info-status" />
+        )}
+
         {value}
       </strong>
 
@@ -1326,47 +1428,64 @@ function DeploymentTable({
         <tbody>
           {deployments.map((deployment) => {
 
-            const environment = environments.find(
-              (e) => e.id === deployment.environment_id
-            );
+            const environment =
+              environments.find(
+                (e) =>
+                  e.id ===
+                  deployment.environment_id
+              );
 
-            const application = applications.find(
-              (a) => a.id === environment?.application_id
-            );
+            const application =
+              applications.find(
+                (a) =>
+                  a.id ===
+                  environment?.application_id
+              );
 
             return (
               <tr key={deployment.id}>
 
                 <td>
                   <div className="table-app">
+
                     <div className="table-app-icon">
-                      <Icon name="apps" size={17} />
+                      <Icon
+                        name="apps"
+                        size={17}
+                      />
                     </div>
 
                     <div>
                       <strong>
-                        {application?.name || "Application"}
+                        {application?.name ||
+                          "Application"}
                       </strong>
 
                       <span>
                         CloudMind
                       </span>
                     </div>
+
                   </div>
                 </td>
 
                 <td>
                   <span className="environment-pill">
-                    {environment?.name || "development"}
+                    {environment?.name ||
+                      "development"}
                   </span>
                 </td>
 
                 <td>
-                  <strong>{deployment.version}</strong>
+                  <strong>
+                    {deployment.version}
+                  </strong>
                 </td>
 
                 <td>
-                  <StatusBadge status={deployment.status} />
+                  <StatusBadge
+                    status={deployment.status}
+                  />
                 </td>
 
                 <td>
@@ -1403,7 +1522,9 @@ function StatusBadge({
   }
 
   return (
-    <span className={`status-badge ${className}`}>
+    <span
+      className={`status-badge ${className}`}
+    >
       <i />
       {status}
     </span>
@@ -1429,6 +1550,7 @@ function ResourcePage({
       <div className="resource-page-header">
 
         <div>
+
           <h2>
             <span className="resource-page-icon">
               <Icon name={icon} size={22} />
@@ -1438,6 +1560,7 @@ function ResourcePage({
           </h2>
 
           <p>{description}</p>
+
         </div>
 
         <div className="resource-count">
@@ -1451,18 +1574,24 @@ function ResourcePage({
 
         {count === 0 ? (
           <div className="empty-resource">
+
             <Icon name={icon} size={35} />
-            <h3>No {title.toLowerCase()} found</h3>
+
+            <h3>
+              No {title.toLowerCase()} found
+            </h3>
+
             <p>
-              There are currently no {title.toLowerCase()} registered.
+              There are currently no{" "}
+              {title.toLowerCase()} registered.
             </p>
+
           </div>
         ) : (
           children
         )}
 
       </div>
-
     </section>
   );
 }
