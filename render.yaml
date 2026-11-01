@@ -2,8 +2,8 @@ services:
   - type: web
     name: cloudmind
     env: python
-    buildCommand: pip install -r backend/core-api/requirements.txt
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --app-dir backend/core-api
+    buildCommand: pip install --upgrade pip && pip install -r backend/core-api/requirements.txt
+    startCommand: python -m alembic -c backend/core-api/alembic.ini upgrade head; uvicorn app.main:app --host 0.0.0.0 --port $PORT --app-dir backend/core-api
     plan: free
     envVars:
       - key: PYTHON_VERSION
@@ -12,3 +12,7 @@ services:
         value: "true"
       - key: CORS_ORIGINS
         value: "*"
+      - key: ENVIRONMENT
+        value: "development"
+      - key: JWT_SECRET_KEY
+        value: "c10udm1nd-sup3r-s3cur3-pr0duct10n-k3y-99482716382910472819284710"
