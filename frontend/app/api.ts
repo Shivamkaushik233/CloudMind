@@ -1,4 +1,4 @@
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 let refreshing: Promise<string> | null = null;
 
 export async function request(endpoint: string, options: RequestInit = {}): Promise<Response> {

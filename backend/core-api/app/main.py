@@ -1,4 +1,7 @@
+import os
 from fastapi import FastAPI, Depends, HTTPException
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from app.database import get_db
@@ -38,17 +41,6 @@ app = FastAPI(
     version="1.0.0",
 )
 
-@app.get("/", tags=["meta"])
-def root():
-    return {
-        "service": "CloudMind",
-        "status": "running",
-        "message": "CloudMind Core API is live",
-        "docs": "/docs",
-        "health": "/health",
-    }
-
-
 app.include_router(auth.router)
 app.include_router(projects.router)
 app.include_router(applications.router)
@@ -59,8 +51,7 @@ app.include_router(operations.router)
 app.include_router(ml.router)
 app.include_router(oidc.router)
 app.add_middleware(RateLimitMiddleware)
-app.add_middleware(SessionMiddleware,secret_key=settings.jwt_secret_key,https_only=settings.environment=="production",same_site="lax")
-
+app.add_middleware(SessionMiddleware, secret_key=settings.jwt_secret_key, https_only=settings.environment == "production", same_site="lax")
 
 # Allow the deployed CloudMind frontend to communicate with the API
 app.add_middleware(
@@ -71,8 +62,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-
+@app.get("/api", tags=["meta"])
+def api_meta():
+    return {
+        "service": "CloudMind",
+        "status": "running",
+        "message": "CloudMind Core API is live",
+        "docs": "/docs",
+        "health": "/health",
+    }
 
 @app.get("/health", tags=["meta"])
 def health(db: Session = Depends(get_db)):
@@ -89,7 +87,41 @@ if settings.otel_endpoint:
     from opentelemetry.sdk.trace.export import BatchSpanProcessor
     from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
     from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-    provider=TracerProvider(resource=Resource.create({"service.name":"cloudmind-api"}))
+    provider = TracerProvider(resource=Resource.create({"service.name": "cloudmind-api"}))
     provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=settings.otel_endpoint)))
     trace.set_tracer_provider(provider)
-    FastAPIInstrumentor.instrument_app(app,tracer_provider=provider,excluded_urls="health,metrics")
+    FastAPIInstrumentor.instrument_app(app, tracer_provider=provider, excluded_urls="health,metrics")
+
+# Locate static frontend export if available
+frontend_dirs = [
+    os.path.abspath("/app/frontend/out"),
+    os.path.abspath("frontend/out"),
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "frontend", "out")),
+]
+frontend_out = next((d for d in frontend_dirs if os.path.isdir(d)), None)
+
+if frontend_out:
+    next_dir = os.path.join(frontend_out, "_next")
+    if os.path.isdir(next_dir):
+        app.mount("/_next", StaticFiles(directory=next_dir), name="next_static")
+
+    @app.get("/", tags=["frontend"])
+    def serve_frontend_root():
+        return FileResponse(os.path.join(frontend_out, "index.html"))
+
+    @app.get("/{catchall:path}", tags=["frontend"])
+    def serve_frontend_catchall(catchall: str):
+        file_path = os.path.join(frontend_out, catchall)
+        if os.path.isfile(file_path):
+            return FileResponse(file_path)
+        return FileResponse(os.path.join(frontend_out, "index.html"))
+else:
+    @app.get("/", tags=["meta"])
+    def root():
+        return {
+            "service": "CloudMind",
+            "status": "running",
+            "message": "CloudMind Core API is live",
+            "docs": "/docs",
+            "health": "/health",
+        }

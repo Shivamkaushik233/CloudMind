@@ -1,5 +1,16 @@
-FROM python:3.12-slim
+# Stage 1: Build the Next.js Frontend
+FROM node:20-alpine AS frontend-builder
+WORKDIR /app/frontend
 
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm install
+
+COPY frontend/ ./
+ENV NEXT_EXPORT=1
+RUN npm run build
+
+# Stage 2: Python Core API Backend serving the Frontend
+FROM python:3.12-slim
 WORKDIR /app
 
 COPY backend/core-api/requirements.txt ./
@@ -8,6 +19,9 @@ RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r re
 COPY backend/core-api/app ./app
 COPY backend/core-api/migrations ./migrations
 COPY backend/core-api/alembic.ini ./
+
+# Copy built frontend static export
+COPY --from=frontend-builder /app/frontend/out ./frontend/out
 
 ENV PORT=8000
 ENV DEMO_ENABLED=true
