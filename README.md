@@ -1,5 +1,7 @@
 # CloudMind
 
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/Shivamkaushik233/CloudMind)
+
 A runnable cloud-operations platform: manage projects and environments, ingest telemetry, forecast traffic, detect anomalies, plan capacity, and investigate incidents from evidence.
 
 The Next.js console and FastAPI backend run locally without cloud credentials. PostgreSQL, Kafka, Prometheus and Grafana have optional container configurations. Real Kubernetes execution is an explicit operator command. Optional Bedrock and Claude integrations augment the built-in evidence-based investigation engine.
