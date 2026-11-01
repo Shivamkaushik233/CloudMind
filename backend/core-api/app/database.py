@@ -1,7 +1,16 @@
 from sqlalchemy import create_engine
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
+import sqlite3
 from sqlalchemy.orm import sessionmaker, declarative_base
 
 from app.config import settings
+
+
+@event.listens_for(Engine, "connect")
+def enforce_sqlite_foreign_keys(connection, _):
+    if isinstance(connection, sqlite3.Connection):
+        connection.execute("PRAGMA foreign_keys=ON")
 
 connect_args = (
     {"check_same_thread": False} if settings.database_url.startswith("sqlite") else {}

@@ -2,7 +2,8 @@
 
 import { FormEvent, useEffect, useState } from "react";
 
-const API_URL = "https://cloudmind-87ph.onrender.com";
+import Operations from "./Operations";
+import { api, API_URL } from "./api";
 
 type User = {
   id?: string;
@@ -243,6 +244,7 @@ function Icon({
 }
 
 export default function CloudMind() {
+  const [oidcEnabled,setOidcEnabled]=useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
 
@@ -297,6 +299,17 @@ export default function CloudMind() {
   const [newDepVersion, setNewDepVersion] = useState("v1.0.0");
 
   useEffect(() => {
+    fetch(`${API_URL}/auth/oidc/config`).then(r=>r.json()).then(c=>setOidcEnabled(c.enabled)).catch(()=>{});
+    const url=new URL(window.location.href);
+    const code=url.searchParams.get("login_code");
+    if(code){
+      url.searchParams.delete("login_code");window.history.replaceState({},"",url);
+      fetch(`${API_URL}/auth/oidc/exchange`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code})})
+        .then(async r=>{if(!r.ok)throw new Error("Single sign-on failed. Please try again.");return r.json();})
+        .then(data=>{localStorage.setItem("cloudmind_token",data.access_token);localStorage.setItem("cloudmind_refresh",data.refresh_token);setToken(data.access_token);})
+        .catch(e=>setLoginError(e.message));
+      return;
+    }
     const savedToken = localStorage.getItem("cloudmind_token");
     if (savedToken) {
       setToken(savedToken);
@@ -314,26 +327,7 @@ export default function CloudMind() {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<any> {
-    const response = await fetch(`${API_URL}${endpoint}`, {
-      ...options,
-      headers: {
-        ...(options.headers || {}),
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      const text = await response.text();
-      let errorMsg = text;
-      try {
-        const json = JSON.parse(text);
-        if (json.detail) errorMsg = json.detail;
-      } catch {}
-      throw new Error(errorMsg || `Request failed: ${response.status}`);
-    }
-
-    if (response.status === 204) return null;
-    return response.json();
+    return api(endpoint, options);
   }
 
   async function loadUser() {
@@ -457,6 +451,7 @@ export default function CloudMind() {
       }
 
       localStorage.setItem("cloudmind_token", data.access_token);
+      localStorage.setItem("cloudmind_refresh", data.refresh_token);
       setToken(data.access_token);
       setPassword("");
     } catch (err) {
@@ -508,6 +503,7 @@ export default function CloudMind() {
       }
 
       localStorage.setItem("cloudmind_token", loginData.access_token);
+      localStorage.setItem("cloudmind_refresh", loginData.refresh_token);
       setToken(loginData.access_token);
       setRegPassword("");
     } catch (err) {
@@ -526,6 +522,9 @@ export default function CloudMind() {
   }
 
   function logout() {
+    const refresh = localStorage.getItem("cloudmind_refresh");
+    if (refresh) fetch(`${API_URL}/auth/logout`, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({refresh_token:refresh})}).catch(()=>{});
+    localStorage.removeItem("cloudmind_refresh");
     localStorage.removeItem("cloudmind_token");
     setToken(null);
     setUser(null);
@@ -536,6 +535,12 @@ export default function CloudMind() {
     setDeployments([]);
     setUsers([]);
   }
+
+  useEffect(() => {
+    const expired = () => { setToken(null); setUser(null); setLoginError("Session expired. Please sign in again."); };
+    window.addEventListener("cloudmind-session-expired", expired);
+    return () => window.removeEventListener("cloudmind-session-expired", expired);
+  }, []);
 
   // --- Resource Creation Handlers ---
   async function handleCreateProject(e: FormEvent) {
@@ -784,6 +789,7 @@ export default function CloudMind() {
 
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: "dashboard" as IconName },
+    { id: "operations", label: "Operations", icon: "activity" as IconName },
     { id: "projects", label: "Projects", icon: "projects" as IconName },
     {
       id: "applications",
@@ -834,7 +840,7 @@ export default function CloudMind() {
             <p>
               {authMode === "login"
                 ? "Sign in to manage your cloud infrastructure."
-                : "Create a new account with Admin or Developer access."}
+                : "Create your developer account."}
             </p>
           </div>
 
@@ -889,7 +895,8 @@ export default function CloudMind() {
                 />
               </div>
 
-              {loginError && (
+              {oidcEnabled&&<a className="button" href={`${API_URL}/auth/oidc/login`}>Sign in with your organization</a>}
+            {loginError && (
                 <div className="login-error">
                   <span className="error-dot" />
                   <span>{loginError}</span>
@@ -914,14 +921,7 @@ export default function CloudMind() {
                 )}
               </button>
 
-              <button
-                type="button"
-                className="quick-demo-btn"
-                onClick={handleQuickDemo}
-              >
-                <Icon name="shield" size={16} />
-                Fill Demo Admin Credentials (admin@cloudmind.io)
-              </button>
+
             </form>
           ) : (
             <form onSubmit={handleRegister}>
@@ -958,21 +958,7 @@ export default function CloudMind() {
                 />
               </div>
 
-              <div className="form-group">
-                <label>Account Role</label>
-                <select
-                  className="form-select"
-                  value={regRole}
-                  onChange={(e) => setRegRole(e.target.value)}
-                >
-                  <option value="DEVELOPER">
-                    User / Developer (Manage own projects)
-                  </option>
-                  <option value="ADMIN">
-                    Admin (Full control & user management)
-                  </option>
-                </select>
-              </div>
+<p className="ops-muted">New accounts receive the Developer role. Administrators manage elevated access.</p>
 
               {loginError && (
                 <div className="login-error">
@@ -1003,7 +989,7 @@ export default function CloudMind() {
 
           <div className="login-footer">
             <span className="online-dot" />
-            <span>CloudMind backend connected</span>
+            <span>CloudMind · Infrastructure intelligence</span>
           </div>
         </section>
       </main>
@@ -1129,6 +1115,7 @@ export default function CloudMind() {
         <div className="content-area">
           {error && <div className="error-banner">{error}</div>}
 
+          {activePage === "operations" && <Operations readOnly={user?.role === "VIEWER"} />}
           {/* DASHBOARD TAB */}
           {activePage === "dashboard" && (
             <>
@@ -1136,7 +1123,7 @@ export default function CloudMind() {
                 <div>
                   <div className="hero-eyebrow">
                     <span className="online-dot" />
-                    AUTONOMOUS CLOUD OPERATIONS
+                    CLOUD OPERATIONS WORKSPACE
                   </div>
 
                   <h2>Welcome back, {user?.full_name || "Operator"}</h2>
@@ -1147,7 +1134,8 @@ export default function CloudMind() {
                       : "Developer workspace: create and deploy microservices, manage your application environments, and view release telemetry."}
                   </p>
 
-                  <div style={{ display: "flex", gap: "12px", marginTop: "20px" }}>
+                  <div style={{ display: "flex", gap: "12px", marginTop: "20px", flexWrap: "wrap" }}>
+                    <button className="hero-button" onClick={() => setActivePage("operations")}>Open Operations</button>
                     <button
                       className="hero-button"
                       onClick={() => setActiveModal("project")}
@@ -1868,6 +1856,10 @@ export default function CloudMind() {
                           <span className={`role-badge ${u.role?.toLowerCase()}`}>
                             {u.role}
                           </span>
+                          {u.id !== user?.id && <select aria-label={`Role for ${u.email}`} value={u.role} onChange={async e => {
+                            try { await api(`/auth/users/${u.id}/role`, {method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({role:e.target.value})}); await loadUsers(); }
+                            catch(err) { setError((err as Error).message); }
+                          }}><option>DEVELOPER</option><option>VIEWER</option><option>DEVOPS</option><option>ADMIN</option></select>}
                         </td>
 
                         <td>

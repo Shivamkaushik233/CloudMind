@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Project, User, Role
 from app.schemas import ProjectCreate, ProjectOut
-from app.auth import get_current_user
+from app.auth import get_current_user, get_writer
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -15,7 +15,7 @@ router = APIRouter(prefix="/projects", tags=["projects"])
 def create_project(
     payload: ProjectCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_writer),
 ):
     project = Project(
         name=payload.name, description=payload.description, owner_id=current_user.id
@@ -49,7 +49,7 @@ def get_project(
 def delete_project(
     project_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_writer),
 ):
     project = _get_owned_project(db, project_id, current_user)
     db.delete(project)

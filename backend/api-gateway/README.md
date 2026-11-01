@@ -1,8 +1,3 @@
-# API Gateway — later phase stub
+# API boundary
 
-Placeholder for a routing/auth-checking layer in front of the individual
-services (core-api, ml service, ai-agent). For now, the frontend / clients
-talk to `backend/core-api` directly during local development.
-
-Future: Kong / Spring Cloud Gateway / AWS API Gateway, JWT validation,
-rate limiting, request routing to whichever service owns a given path.
+The current application exposes one modular FastAPI API with centralized authentication and ownership enforcement. The console uses `NEXT_PUBLIC_API_URL`. No separate gateway process is needed locally. Put an HTTPS ingress/reverse proxy with production rate limits in front of the API during live deployment.

@@ -1,0 +1,4 @@
+-r requirements.in
+xgboost==3.4.1; sys_platform != "linux"
+xgboost-cpu==3.4.1; sys_platform == "linux"
+torch==2.15.0

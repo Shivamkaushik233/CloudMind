@@ -1,0 +1,6 @@
+apiVersion: v2
+name: cloudmind
+description: CloudMind API and dashboard
+type: application
+version: 1.0.0
+appVersion: "1.0.0"

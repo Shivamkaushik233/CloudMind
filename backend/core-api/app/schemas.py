@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr, ConfigDict
+from pydantic import BaseModel, EmailStr, ConfigDict, Field, field_validator
 
 from app.models import Role, DeploymentStatus
 
@@ -11,9 +11,16 @@ from app.models import Role, DeploymentStatus
 
 class UserCreate(BaseModel):
     email: EmailStr
-    full_name: str
-    password: str
+    full_name: str = Field(min_length=1, max_length=120)
+    password: str = Field(min_length=8, max_length=72)
     role: Role = Role.DEVELOPER
+
+    @field_validator("password")
+    @classmethod
+    def bcrypt_length(cls, value):
+        if len(value.encode()) > 72:
+            raise ValueError("Password must be at most 72 UTF-8 bytes")
+        return value
 
 
 class UserOut(BaseModel):
@@ -28,6 +35,7 @@ class UserOut(BaseModel):
 
 class Token(BaseModel):
     access_token: str
+    refresh_token: str
     token_type: str = "bearer"
 
 

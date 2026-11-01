@@ -1,0 +1,85 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cloudmind
+  annotations:
+    eks.amazonaws.com/role-arn: {{ .Values.serviceAccountRoleArn | quote }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cloudmind-models
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: {{ .Values.storage.className | quote }}
+  resources:
+    requests:
+      storage: {{ .Values.storage.size }}
+{{- range $name := list "api" "frontend" }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudmind-{{ $name }}
+spec:
+  replicas: {{ if eq $name "api" }}1{{ else }}{{ $.Values.replicas }}{{ end }}
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels: {app: "cloudmind-{{ $name }}"}
+  template:
+    metadata:
+      labels: {app: "cloudmind-{{ $name }}"}
+    spec:
+      serviceAccountName: cloudmind
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: {{ $name }}
+          image: {{ required "Set api.image and frontend.image to published image digests" (index $.Values $name "image") | quote }}
+          ports:
+            - containerPort: {{ if eq $name "api" }}8000{{ else }}3000{{ end }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+          resources:
+            requests: {cpu: 250m, memory: 512Mi}
+            limits: {cpu: "2", memory: 2Gi}
+          readinessProbe:
+            httpGet:
+              path: {{ if eq $name "api" }}/health{{ else }}/{{ end }}
+              port: {{ if eq $name "api" }}8000{{ else }}3000{{ end }}
+            initialDelaySeconds: 15
+          startupProbe:
+            httpGet:
+              path: {{ if eq $name "api" }}/health{{ else }}/{{ end }}
+              port: {{ if eq $name "api" }}8000{{ else }}3000{{ end }}
+            failureThreshold: 60
+            periodSeconds: 5
+          {{- if eq $name "api" }}
+          envFrom:
+            - secretRef: {name: {{ $.Values.secretName }}}
+          env:
+            - {name: ENVIRONMENT, value: production}
+            - {name: MODEL_STORE, value: /data/models}
+          volumeMounts:
+            - {name: models, mountPath: /data}
+          {{- end }}
+      {{- if eq $name "api" }}
+      volumes:
+        - name: models
+          persistentVolumeClaim: {claimName: cloudmind-models}
+      {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloudmind-{{ $name }}
+spec:
+  selector: {app: "cloudmind-{{ $name }}"}
+  ports:
+    - port: 80
+      targetPort: {{ if eq $name "api" }}8000{{ else }}3000{{ end }}
+{{- end }}

@@ -5,9 +5,16 @@ def register_and_login(client, email="dev@cloudmind.io", role="DEVELOPER"):
             "email": email,
             "full_name": "Dev User",
             "password": "sup3rsecret",
-            "role": role,
+            "role": "DEVELOPER",
         },
     )
+    if role != "DEVELOPER":
+        from app.main import app
+        from app.database import get_db
+        from app.models import User, Role
+        with next(app.dependency_overrides[get_db]()) as db:
+            db.query(User).filter_by(email=email).one().role = Role(role)
+            db.commit()
     resp = client.post(
         "/auth/login",
         data={"username": email, "password": "sup3rsecret"},

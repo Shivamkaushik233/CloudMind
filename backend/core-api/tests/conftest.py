@@ -11,7 +11,10 @@ TEST_DB_URL = "sqlite://"  # in-memory, shared via StaticPool
 
 
 @pytest.fixture()
-def client():
+def client(monkeypatch):
+    from app.config import settings
+    monkeypatch.setattr(settings, "jwt_secret_key", "test-only-secret-at-least-thirty-two-characters")
+    monkeypatch.setattr(settings, "auth_rate_limit", 10000)
     engine = create_engine(
         TEST_DB_URL,
         connect_args={"check_same_thread": False},

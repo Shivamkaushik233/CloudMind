@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Application, User
 from app.schemas import ApplicationCreate, ApplicationOut
-from app.auth import get_current_user
+from app.auth import get_current_user, get_writer
 from app.routers.projects import _get_owned_project
 
 router = APIRouter(tags=["applications"])
@@ -21,7 +21,7 @@ def create_application(
     project_id: str,
     payload: ApplicationCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_writer),
 ):
     _get_owned_project(db, project_id, current_user)  # 404/403 if not yours
     app_ = Application(project_id=project_id, name=payload.name, repo_url=payload.repo_url)
@@ -55,7 +55,7 @@ def get_application(
 def delete_application(
     application_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_writer),
 ):
     app_ = _get_owned_application(db, application_id, current_user)
     db.delete(app_)

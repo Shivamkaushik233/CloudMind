@@ -1,0 +1,19 @@
+api:
+  image: ""
+frontend:
+  image: ""
+secretName: cloudmind-secrets
+serviceAccountRoleArn: ""
+replicas: 1
+storage:
+  size: 10Gi
+  className: gp3
+ingress:
+  enabled: false
+  className: alb
+  host: ""
+  certificateArn: ""
+  apiHost: ""
+  wafArn: ""
+worker:
+  enabled: false

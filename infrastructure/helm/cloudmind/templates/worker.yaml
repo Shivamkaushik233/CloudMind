@@ -1,0 +1,28 @@
+{{- if .Values.worker.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudmind-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: cloudmind-worker}
+  template:
+    metadata:
+      labels: {app: cloudmind-worker}
+    spec:
+      serviceAccountName: cloudmind
+      securityContext: {runAsNonRoot: true, runAsUser: 1000, fsGroup: 1000}
+      containers:
+        - name: worker
+          image: {{ .Values.api.image | quote }}
+          command: [python, -m, app.worker]
+          envFrom:
+            - secretRef: {name: {{ .Values.secretName }}}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {cpu: "1", memory: 512Mi}
+{{- end }}

@@ -1,0 +1,94 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cloudmind
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudmind-api
+  namespace: cloudmind
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: cloudmind-api}
+  template:
+    metadata:
+      labels: {app: cloudmind-api}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: api
+          image: cloudmind-api:1.0
+          imagePullPolicy: IfNotPresent
+          ports: [{containerPort: 8000}]
+          envFrom:
+            - secretRef: {name: cloudmind-api-config}
+          env:
+            - {name: ENVIRONMENT, value: production}
+            - {name: DEMO_ENABLED, value: 'false'}
+          resources:
+            requests: {cpu: 250m, memory: 512Mi}
+            limits: {cpu: '2', memory: 2Gi}
+          readinessProbe:
+            httpGet: {path: /health, port: 8000}
+            initialDelaySeconds: 15
+          livenessProbe:
+            httpGet: {path: /health, port: 8000}
+            initialDelaySeconds: 30
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloudmind-api
+  namespace: cloudmind
+spec:
+  selector: {app: cloudmind-api}
+  ports: [{port: 8000, targetPort: 8000}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudmind-frontend
+  namespace: cloudmind
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: cloudmind-frontend}
+  template:
+    metadata:
+      labels: {app: cloudmind-frontend}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: frontend
+          image: cloudmind-frontend:1.0
+          imagePullPolicy: IfNotPresent
+          ports: [{containerPort: 3000}]
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {cpu: '1', memory: 512Mi}
+          readinessProbe:
+            httpGet: {path: /, port: 3000}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloudmind-frontend
+  namespace: cloudmind
+spec:
+  selector: {app: cloudmind-frontend}
+  ports: [{port: 3000, targetPort: 3000}]

@@ -1,0 +1,111 @@
+name: CloudMind checks
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/core-api/requirements.txt
+      - run: pip install -r backend/core-api/requirements-ml.txt
+      - run: python -m pytest -q
+      - run: python scripts/evaluate.py --output evaluation.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: evaluation
+          path: evaluation.json
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend
+      - run: npm audit --omit=dev --audit-level=high
+        working-directory: frontend
+  compose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 scripts/configure.py
+      - run: docker compose up --build -d --wait
+      - run: curl --fail http://localhost:8000/health && curl --fail http://localhost:3000
+      - if: always()
+        run: docker compose logs
+      - if: always()
+        run: docker compose down -v
+  infrastructure:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.13.5
+      - run: terraform fmt -check -recursive
+        working-directory: infrastructure/terraform
+      - run: terraform init -backend=false && terraform validate
+        working-directory: infrastructure/terraform
+      - uses: azure/setup-helm@v4.3.0
+        with:
+          version: v3.19.0
+      - run: helm lint infrastructure/helm/cloudmind --set api.image=example/api:test --set frontend.image=example/frontend:test
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: pip install -r backend/core-api/requirements-ml.txt
+      - run: npm ci
+        working-directory: frontend
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - run: npm run test:e2e
+        working-directory: frontend
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-failure-traces
+          path: frontend/test-results
+  postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: cloudmind
+          POSTGRES_PASSWORD: ci-isolated-database
+          POSTGRES_DB: cloudmind
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U cloudmind"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg://cloudmind:ci-isolated-database@localhost:5432/cloudmind
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r backend/core-api/requirements.txt
+      - run: python -m alembic -c backend/core-api/alembic.ini upgrade head
+      - run: python -m alembic -c backend/core-api/alembic.ini check

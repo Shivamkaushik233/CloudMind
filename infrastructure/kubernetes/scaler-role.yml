@@ -1,0 +1,13 @@
+# Apply in the namespace containing the workload; restrict resourceNames to it.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: cloudmind-scaler
+  namespace: default
+rules:
+  - apiGroups: [apps]
+    resources: [deployments, deployments/scale]
+    resourceNames: [checkout-service]
+    verbs: [get, patch, update]
+# Bind this Role to an existing dedicated operator identity. No credentials
+# are generated, and no cluster-admin binding is installed by this project.

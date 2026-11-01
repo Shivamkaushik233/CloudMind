@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cloudmind
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Shivamkaushik233/CloudMind.git
+    targetRevision: main
+    path: infrastructure/helm/cloudmind
+    helm:
+      valueFiles: [values.yaml, values-production.yaml]
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cloudmind
+  syncPolicy:
+    syncOptions: [CreateNamespace=true]
+# Create values-production.yaml with your image digests and hosts before syncing.
+# Automatic sync is intentionally not enabled; infrastructure changes are operator-controlled.

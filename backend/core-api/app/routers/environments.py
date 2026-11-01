@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Environment, User, Cluster
 from app.schemas import EnvironmentCreate, EnvironmentOut
-from app.auth import get_current_user
+from app.auth import get_current_user, get_writer
 from app.routers.applications import _get_owned_application
 
 router = APIRouter(tags=["environments"])
@@ -21,7 +21,7 @@ def create_environment(
     application_id: str,
     payload: EnvironmentCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_writer),
 ):
     _get_owned_application(db, application_id, current_user)
 
@@ -53,7 +53,7 @@ def list_environments(
 def delete_environment(
     environment_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_writer),
 ):
     env = _get_owned_environment(db, environment_id, current_user)
     db.delete(env)

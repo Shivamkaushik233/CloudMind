@@ -1,7 +1,3 @@
-# Docker — Phase 3 stub
+# Containers
 
-Will hold per-service Dockerfiles (docker-compose for local dev) and a
-docker-compose.yml wiring together core-api, a database, and (later)
-Kafka/Redis for local integration testing.
-
-Note: `backend/core-api/Dockerfile` already exists and works today.
+Root `docker-compose.yml` starts persistent Postgres, the API and the frontend. The `streaming` profile adds Kafka and its event worker. `docker-compose.observability.yml` adds Prometheus and Grafana. Service Dockerfiles are in `backend/core-api` and `frontend`. See the root quickstart.

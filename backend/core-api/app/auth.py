@@ -3,13 +3,15 @@ from typing import Iterable
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError, jwt
+import jwt
+from jwt import InvalidTokenError as JWTError
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.database import get_db
 from app.models import User, Role
+from app.operations_models import AuthSession
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
@@ -52,7 +54,16 @@ def get_current_user(
     user = db.query(User).filter(User.id == user_id).first()
     if user is None:
         raise credentials_exception
+    session = db.get(AuthSession, payload.get("sid", ""))
+    if not session or session.user_id != user.id or session.revoked or session.expires_at < datetime.utcnow():
+        raise credentials_exception
     return user
+
+
+def get_writer(current_user: User = Depends(get_current_user)):
+    if current_user.role == Role.VIEWER:
+        raise HTTPException(403, "Viewer accounts are read-only")
+    return current_user
 
 
 def require_roles(*roles: Iterable[Role]):

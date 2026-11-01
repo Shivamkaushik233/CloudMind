@@ -5,7 +5,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import User, Role
+from app.models import User, Role, Deployment
 from app.schemas import UserCreate, UserOut, Token
 from app.auth import (
     hash_password,
@@ -14,12 +14,17 @@ from app.auth import (
     get_current_user,
     require_roles,
 )
+from pydantic import BaseModel, Field
+from app.sessions import issue, lookup
+from app.operations_models import AuthSession
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
 def register(payload: UserCreate, db: Session = Depends(get_db)):
+    if payload.role != Role.DEVELOPER:
+        raise HTTPException(403, "Public registration creates developer accounts only")
     existing = db.query(User).filter(User.email == payload.email).first()
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -46,8 +51,52 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    token = create_access_token(subject=user.id)
-    return Token(access_token=token)
+    return issue(db, user)
+
+
+class RefreshInput(BaseModel):
+    refresh_token: str = Field(max_length=256)
+
+
+@router.post("/refresh", response_model=Token)
+def refresh(payload: RefreshInput, db: Session = Depends(get_db)):
+    session = lookup(db, payload.refresh_token)
+    previous_hash = session.refresh_hash
+    from app.sessions import digest
+    import secrets
+    changed = db.query(AuthSession).filter(AuthSession.id == session.id, AuthSession.refresh_hash == previous_hash, AuthSession.revoked == 0).update({"refresh_hash": digest(secrets.token_urlsafe(48))})
+    if changed != 1:
+        db.rollback()
+        raise HTTPException(401, "Refresh token already used")
+    user = db.get(User, session.user_id)
+    if not user:
+        raise HTTPException(401, "Account no longer exists")
+    return issue(db, user, session)
+
+
+@router.post("/logout", status_code=204)
+def logout(payload: RefreshInput, db: Session = Depends(get_db)):
+    session = lookup(db, payload.refresh_token)
+    session.revoked = 1
+    db.commit()
+
+
+class RoleInput(BaseModel):
+    role: Role
+
+
+@router.patch("/users/{user_id}/role", response_model=UserOut)
+def change_role(user_id: str, payload: RoleInput, db: Session = Depends(get_db), admin: User = Depends(require_roles(Role.ADMIN))):
+    if user_id == admin.id:
+        raise HTTPException(400, "Cannot change your own administrator role")
+    user = db.get(User, user_id)
+    if not user:
+        raise HTTPException(404, "User not found")
+    user.role = payload.role
+    from app.telemetry import event
+    event(db, None, admin.id, "user.role_changed", {"user_id": user.id, "role": payload.role.value})
+    db.commit()
+    return user
 
 
 @router.get("/me", response_model=UserOut)
@@ -85,6 +134,11 @@ def delete_user(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
         )
+    if user.projects:
+        raise HTTPException(409, "Delete or transfer this user's projects first")
+    if db.query(Deployment.id).filter_by(triggered_by_id=user.id).first():
+        raise HTTPException(409, "User has deployment history; retain the account for attribution")
+    db.query(AuthSession).filter_by(user_id=user.id).delete()
     db.delete(user)
     db.commit()
 

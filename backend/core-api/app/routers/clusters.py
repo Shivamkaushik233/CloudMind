@@ -49,7 +49,7 @@ def list_clusters(db: Session = Depends(get_db)):
     "/{cluster_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[
-        Depends(require_roles(Role.ADMIN, Role.DEVOPS, Role.DEVELOPER))
+        Depends(require_roles(Role.ADMIN, Role.DEVOPS))
     ],
 )
 def delete_cluster(
@@ -64,5 +64,7 @@ def delete_cluster(
             detail="Cluster not found",
         )
 
+    if cluster.environments:
+        raise HTTPException(409, "Cluster is still assigned to environments")
     db.delete(cluster)
     db.commit()

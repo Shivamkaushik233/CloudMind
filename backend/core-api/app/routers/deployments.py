@@ -4,9 +4,10 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.telemetry import event
 from app.models import Deployment, User, DeploymentStatus
 from app.schemas import DeploymentCreate, DeploymentOut, DeploymentStatusUpdate
-from app.auth import get_current_user
+from app.auth import get_current_user, get_writer
 from app.routers.environments import _get_owned_environment
 
 router = APIRouter(tags=["deployments"])
@@ -21,7 +22,7 @@ def create_deployment(
     environment_id: str,
     payload: DeploymentCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_writer),
 ):
     _get_owned_environment(db, environment_id, current_user)
     deployment = Deployment(
@@ -31,6 +32,8 @@ def create_deployment(
         triggered_by_id=current_user.id,
     )
     db.add(deployment)
+    db.flush()
+    event(db, environment_id, current_user.id, "deployment.created", {"id":deployment.id,"version":deployment.version,"status":deployment.status.value})
     db.commit()
     db.refresh(deployment)
     return deployment
@@ -56,7 +59,7 @@ def update_deployment_status(
     deployment_id: str,
     payload: DeploymentStatusUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_writer),
 ):
     deployment = db.query(Deployment).filter(Deployment.id == deployment_id).first()
     if not deployment:
@@ -65,6 +68,7 @@ def update_deployment_status(
         raise HTTPException(status_code=404, detail="Deployment not found")
     _get_owned_environment(db, deployment.environment_id, current_user)
     deployment.status = payload.status
+    event(db, deployment.environment_id, current_user.id, "deployment.updated", {"id":deployment.id,"version":deployment.version,"status":deployment.status.value})
     db.commit()
     db.refresh(deployment)
     return deployment

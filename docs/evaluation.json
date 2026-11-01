@@ -1,0 +1,42 @@
+{
+  "dataset": "deterministic synthetic traffic, 12 hours; first 2 hours warm-up",
+  "forecast_one_step_holdout": {
+    "mae": 0.096,
+    "rmse": 0.113,
+    "mape": 0.156,
+    "persistence_mae": 1.595,
+    "test_samples": 142
+  },
+  "anomaly_detection": {
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0,
+    "true_positives": 11,
+    "false_positives": 0,
+    "false_negatives": 0
+  },
+  "capacity_simulation": {
+    "reactive_cpu_70_percent": {
+      "cost": 1.0087,
+      "scaling_events": 12,
+      "sla_violations": 0,
+      "average_latency_ms": 35.381,
+      "peak_latency_ms": 68.658,
+      "average_cpu_percent": 40.396
+    },
+    "cloudmind_forecast": {
+      "cost": 0.9853,
+      "scaling_events": 16,
+      "sla_violations": 0,
+      "average_latency_ms": 35.0,
+      "peak_latency_ms": 35,
+      "average_cpu_percent": 39.806
+    }
+  },
+  "limitations": [
+    "Synthetic incidents are deliberately obvious; model parameters were tuned on this simulator.",
+    "The reactive comparator is a simplified CPU rule, not the Kubernetes HPA implementation.",
+    "The harness assumes one-minute actuation and does not model pod startup or node provisioning.",
+    "No production performance or cost-saving claim is made."
+  ]
+}
